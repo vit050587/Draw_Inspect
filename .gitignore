@@ -7,6 +7,7 @@ __pycache__/
 *.so
 *.dll
 *.exe
+*.class
 *.out
 
 # Dependencies
@@ -19,6 +20,9 @@ target/
 .gradle/
 .mypy_cache/
 .pytest_cache/
+coverage/
+htmlcov/
+.coverage
 
 # Logs and temp files
 *.log
@@ -34,11 +38,6 @@ target/
 # Editors
 .vscode/
 .idea/
-
-# Coverage reports
-coverage/
-htmlcov/
-.coverage
 
 # System files
 .DS_Store
