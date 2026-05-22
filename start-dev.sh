@@ -1,6 +1,6 @@
 #!/bin/bash
 PROJECT_DIR="/home/kosinov.va/Projects/processing_schema/Draw_Inspect"
-VENV_DIR="/home/kosinov.va/.venv"
+VENV_DIR="/home/kosinov.va/Projects/processing_schema/Draw_Inspect.venv"
 
 cd "$PROJECT_DIR" || exit
 
