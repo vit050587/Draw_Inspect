@@ -122,23 +122,27 @@ def detect_and_save_drawings(pdf_path: str, output_dir: str) -> List[Dict[str, A
         return []
 
 
-def extract_all_pages_to_images(pdf_path: str, output_folder: str) -> List[Dict[str, Any]]:
+def extract_all_pages_to_pdf(pdf_path: str, output_folder: str) -> List[Dict[str, Any]]:
     """
-    Извлекает все страницы из PDF как изображения PNG.
+    Извлекает все страницы из PDF как отдельные PDF файлы.
     Все страницы сохраняются, ориентация корректируется для альбомного формата.
     
     Args:
         pdf_path: Путь к PDF файлу
-        output_folder: Папка для сохранения изображений
+        output_folder: Папка для сохранения страниц
         
     Returns:
-        Список словарей с путями к изображениям и метаданными
+        Список словарей с путями к PDF файлам и метаданными
     """
-    images = []
+    pages = []
     
     try:
         doc = fitz.open(pdf_path)
         filename = os.path.basename(pdf_path)
+        
+        # Создаем папку для страниц
+        pages_dir = Path(output_folder) / "pages"
+        pages_dir.mkdir(parents=True, exist_ok=True)
         
         for page_num in range(len(doc)):
             page = doc[page_num]
@@ -146,26 +150,21 @@ def extract_all_pages_to_images(pdf_path: str, output_folder: str) -> List[Dict[
             # Определяем необходимую коррекцию ориентации
             rotation = correct_page_orientation(page)
             
-            # Рендерим страницу в изображение с учетом поворота
-            # Создаем матрицу с поворотом
-            if rotation == 0:
-                mat = fitz.Matrix(2.0, 2.0)
-            else:
-                # Поворачиваем страницу перед рендерингом
-                mat = fitz.Matrix(2.0, 2.0).prerotate(rotation)
+            # Создаем новый PDF с одной страницей
+            new_doc = fitz.open()
+            new_doc.insert_pdf(doc, from_page=page_num, to_page=page_num, rotate=rotation)
             
-            pix = page.get_pixmap(matrix=mat)
-            
-            image_filename = f"{filename}_page_{page_num + 1}.png"
-            image_path = os.path.join(output_folder, image_filename)
-            pix.save(image_path)
+            page_filename = f"{filename}_page_{page_num + 1}.pdf"
+            page_path = str(pages_dir / page_filename)
+            new_doc.save(page_path)
+            new_doc.close()
             
             # Получаем размеры в см
             w_cm = page.rect.width * 2.54 / 72
             h_cm = page.rect.height * 2.54 / 72
             
-            images.append({
-                'path': image_path,
+            pages.append({
+                'path': page_path,
                 'page_num': page_num + 1,
                 'source_file': filename,
                 'size': f"{w_cm:.1f}x{h_cm:.1f}cm",
@@ -175,8 +174,8 @@ def extract_all_pages_to_images(pdf_path: str, output_folder: str) -> List[Dict[
         
         doc.close()
         
-        print(f"✅ Извлечено {len(images)} страниц из {filename}")
-        return images
+        print(f"✅ Извлечено {len(pages)} страниц из {filename}")
+        return pages
         
     except Exception as e:
         print(f"❌ Ошибка при извлечении страниц из {pdf_path}: {e}")
