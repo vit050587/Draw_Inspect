@@ -20,41 +20,59 @@ def correct_page_orientation(page: fitz.Page) -> int:
     """
     Определяет и корректирует ориентацию страницы.
     Все чертежи должны быть в альбомной ориентации (ширина > высоты).
-    Возвращает итоговый угол поворота (0, 90, 180, 270).
+    
+    Логика:
+    1. Получаем физические размеры страницы в см.
+    2. Учитываем page.rotation для определения фактической видимой ориентации.
+    3. Если видимая ширина < видимой высоты, значит страница портретная -> нужно повернуть на 90°.
+    4. Возвращаем угол поворота для insert_pdf(rotate=...), чтобы получить итоговую альбомную ориентацию.
     """
-    # Получаем текущую ориентацию из PDF
-    rotation = page.rotation
+    # Получаем текущий rotation страницы из PDF метаданных
+    current_rotation = page.rotation
     
-    # Получаем размеры страницы с учетом текущего rotation
-    rect = page.rect
-    width = rect.width
-    height = rect.height
+    # Получаем "сырые" размеры страницы в пунктах (без учета rotation)
+    # page.rect всегда возвращает размеры в базовой системе координ страницы
+    raw_width_pt = page.rect.width
+    raw_height_pt = page.rect.height
     
-    # Учитываем текущий rotation для определения фактической ориентации
-    if rotation in [90, 270]:
-        # При таком rotation ширина и высота меняются местами
-        actual_width = height
-        actual_height = width
+    # Вычисляем фактические видимые размеры с учетом текущего rotation
+    # Если страница повернута на 90 или 270 градусов, то визуально ширина и высота меняются местами
+    if current_rotation in [90, 270]:
+        visible_width_pt = raw_height_pt
+        visible_height_pt = raw_width_pt
     else:
-        actual_width = width
-        actual_height = height
+        visible_width_pt = raw_width_pt
+        visible_height_pt = raw_height_pt
     
-    # Определяем, нужно ли повернуть для альбомной ориентации
-    needs_landscape_rotation = 0
-    if actual_width < actual_height:
-        # Страница в портретной ориентации - нужно повернуть на 90°
-        needs_landscape_rotation = 90
-        print(f"      📐 Страница в портретной ориентации ({actual_width:.0f}x{actual_height:.0f}), поворачиваем на 90° для альбомной")
+    # Конвертируем в см для наглядности (1 pt = 1/72 inch, 1 inch = 2.54 cm)
+    visible_width_cm = visible_width_pt * 2.54 / 72
+    visible_height_cm = visible_height_pt * 2.54 / 72
     
-    # Итоговый угол поворота = исходный rotation + поворот для альбомной ориентации
-    total_rotation = (rotation + needs_landscape_rotation) % 360
+    print(f"      📏 Размеры: {visible_width_cm:.1f}x{visible_height_cm:.1f}см (rotation={current_rotation}°)")
     
-    if rotation != 0 and needs_landscape_rotation == 0:
-        print(f"      🔄 Страница имеет rotation {rotation}°, исправляем")
-    elif needs_landscape_rotation != 0:
-        print(f"      🔄 Поворачиваем на {needs_landscape_rotation}° для альбомной ориентации")
+    # Определяем необходимость поворота
+    # Цель: ширина должна быть больше высоты (альбомная ориентация)
+    rotation_adjustment = 0
     
-    return total_rotation
+    if visible_width_cm < visible_height_cm:
+        # Страница фактически портретная, нужно повернуть на 90° по часовой стрелке
+        rotation_adjustment = 90
+        print(f"      📐 Страница портретная, требуется поворот на 90°")
+    else:
+        # Страница уже альбомная
+        print(f"      ✅ Страница уже в альбомной ориентации")
+        
+        # Если у страницы есть встроенный rotation != 0, но она визуально альбомная,
+        # мы можем захотеть сбросить rotation в 0 в выходном файле.
+        # insert_pdf(rotate=X) добавляет поворот X к существующему rotation.
+        # Чтобы получить итоговый rotation=0, нужно передать (360 - current_rotation) % 360
+        if current_rotation != 0:
+            rotation_adjustment = (360 - current_rotation) % 360
+            print(f"      🔄 Компенсация встроенного rotation {current_rotation}° -> {rotation_adjustment}°")
+        else:
+            rotation_adjustment = 0
+            
+    return rotation_adjustment
 
 
 def detect_and_save_drawings(pdf_path: str, output_dir: str) -> List[Dict[str, Any]]:
