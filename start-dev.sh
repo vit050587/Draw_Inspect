@@ -1,5 +1,5 @@
 #!/bin/bash
-PROJECT_DIR="/workspace"
+PROJECT_DIR="/home/kosinov.va/Projects/processing_schema/Draw_Inspect"
 VENV_DIR="/home/kosinov.va/.venv"
 
 cd "$PROJECT_DIR" || exit
