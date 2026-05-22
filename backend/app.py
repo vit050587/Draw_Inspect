@@ -9,7 +9,7 @@ import shutil
 # Add parent directory to path for scripts imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from scripts.drawing_detector import extract_all_pages_to_pdf
+from scripts.drawing_detector import extract_drawing_pages_to_pdf
 from scripts.drawing_classifier import classify_drawings, get_relevant_categories_for_question
 from scripts.page_analyzer import analyze_pages
 from scripts.response_generator import generate_response
@@ -49,11 +49,11 @@ def upload_files():
             file.save(filepath)
             saved_paths.append(filepath)
     
-    # Извлекаем все страницы из PDF как отдельные PDF файлы
+    # Извлекаем ТОЛЬКО страницы с чертежами из PDF как отдельные PDF файлы
     all_pages = []
     for filepath in saved_paths:
         if filepath.lower().endswith('.pdf'):
-            pages = extract_all_pages_to_pdf(filepath, session_folder)
+            pages = extract_drawing_pages_to_pdf(filepath, session_folder)
             all_pages.extend(pages)
         else:
             # Предполагаем, что это изображение

@@ -1,6 +1,7 @@
 """
 Модуль детекции страниц с чертежами.
-Использует логику определения чертежей по размеру страницы (> A3/A4).
+Использует логику определения чертежей по размеру страницы (> 30см).
+Сохраняются ТОЛЬКО страницы с чертежами (большая сторона > 30см).
 Все страницы сохраняются как отдельные PDF файлы с коррекцией ориентации.
 """
 
@@ -11,8 +12,8 @@ from typing import List, Dict, Any
 
 # Пороговый размер для определения чертежа (большая сторона в см)
 # A4 = 29.7см, A3 = 42см, A2 = 59.4см
-# Устанавливаем порог 45см - всё что больше A3 считается чертежом
-DRAWING_MIN_SIZE_CM = 45.0
+# Устанавливаем порог 30см - всё что больше A4 считается чертежом
+DRAWING_MIN_SIZE_CM = 30.0
 
 
 def correct_page_orientation(page: fitz.Page) -> int:
@@ -122,17 +123,18 @@ def detect_and_save_drawings(pdf_path: str, output_dir: str) -> List[Dict[str, A
         return []
 
 
-def extract_all_pages_to_pdf(pdf_path: str, output_folder: str) -> List[Dict[str, Any]]:
+def extract_drawing_pages_to_pdf(pdf_path: str, output_folder: str) -> List[Dict[str, Any]]:
     """
-    Извлекает все страницы из PDF как отдельные PDF файлы.
-    Все страницы сохраняются, ориентация корректируется для альбомного формата.
+    Извлекает ТОЛЬКО страницы с чертежами из PDF как отдельные PDF файлы.
+    Чертежами считаются страницы с размером большей стороны > DRAWING_MIN_SIZE_CM (30см).
+    Ориентация корректируется для альбомного формата.
     
     Args:
         pdf_path: Путь к PDF файлу
         output_folder: Папка для сохранения страниц
         
     Returns:
-        Список словарей с путями к PDF файлам и метаданными
+        Список словарей с путями к PDF файлам и метаданными (только чертежи)
     """
     pages = []
     
@@ -144,8 +146,20 @@ def extract_all_pages_to_pdf(pdf_path: str, output_folder: str) -> List[Dict[str
         pages_dir = Path(output_folder) / "pages"
         pages_dir.mkdir(parents=True, exist_ok=True)
         
+        print(f"🔍 Поиск чертежей в файле {filename}... Критерий: > {DRAWING_MIN_SIZE_CM} см")
+        
         for page_num in range(len(doc)):
             page = doc[page_num]
+            
+            # Получаем размеры в см
+            w_cm = page.rect.width * 2.54 / 72
+            h_cm = page.rect.height * 2.54 / 72
+            max_side = max(w_cm, h_cm)
+            
+            # Проверяем, является ли страница чертежом
+            if max_side <= DRAWING_MIN_SIZE_CM:
+                print(f"   ⏭️ Стр. {page_num + 1}: Пропущено ({w_cm:.1f}x{h_cm:.1f}см) - не чертеж")
+                continue
             
             # Определяем необходимую коррекцию ориентации
             rotation = correct_page_orientation(page)
@@ -159,10 +173,6 @@ def extract_all_pages_to_pdf(pdf_path: str, output_folder: str) -> List[Dict[str
             new_doc.save(page_path)
             new_doc.close()
             
-            # Получаем размеры в см
-            w_cm = page.rect.width * 2.54 / 72
-            h_cm = page.rect.height * 2.54 / 72
-            
             pages.append({
                 'path': page_path,
                 'page_num': page_num + 1,
@@ -171,14 +181,19 @@ def extract_all_pages_to_pdf(pdf_path: str, output_folder: str) -> List[Dict[str
                 'width_cm': w_cm,
                 'height_cm': h_cm
             })
+            print(f"   ✅ Стр. {page_num + 1}: Чертеж ({w_cm:.1f}x{h_cm:.1f}см) -> {page_filename}")
         
         doc.close()
         
-        print(f"✅ Извлечено {len(pages)} страниц из {filename}")
+        if not pages:
+            print("ℹ️ Чертежи не найдены (все страницы <= A4)")
+        else:
+            print(f"✅ Найдено и сохранено {len(pages)} чертежей из {filename}")
+        
         return pages
         
     except Exception as e:
-        print(f"❌ Ошибка при извлечении страниц из {pdf_path}: {e}")
+        print(f"❌ Ошибка при извлечении чертежей из {pdf_path}: {e}")
         import traceback
         traceback.print_exc()
         return []
