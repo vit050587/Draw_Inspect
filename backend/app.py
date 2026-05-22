@@ -9,7 +9,7 @@ import shutil
 # Add parent directory to path for scripts imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from scripts.drawing_detector import extract_all_pages_to_images
+from scripts.drawing_detector import extract_all_pages_to_pdf
 from scripts.drawing_classifier import classify_drawings, get_relevant_categories_for_question
 from scripts.page_analyzer import analyze_pages
 from scripts.response_generator import generate_response
@@ -49,27 +49,27 @@ def upload_files():
             file.save(filepath)
             saved_paths.append(filepath)
     
-    # Извлекаем все страницы из PDF как изображения
-    all_images = []
+    # Извлекаем все страницы из PDF как отдельные PDF файлы
+    all_pages = []
     for filepath in saved_paths:
         if filepath.lower().endswith('.pdf'):
-            images = extract_all_pages_to_images(filepath, session_folder)
-            all_images.extend(images)
+            pages = extract_all_pages_to_pdf(filepath, session_folder)
+            all_pages.extend(pages)
         else:
             # Предполагаем, что это изображение
-            all_images.append({
+            all_pages.append({
                 'path': filepath,
                 'page_num': 1,
                 'source_file': os.path.basename(filepath)
             })
     
     # Классифицируем чертежи и распределяем по папкам
-    classifications = classify_drawings(all_images, session_folder)
+    classifications = classify_drawings(all_pages, session_folder)
     
     # Сохраняем информацию о классификации
     classification_info = {
         'session_id': session_id,
-        'total_pages': len(all_images),
+        'total_pages': len(all_pages),
         'classifications': classifications
     }
     
@@ -79,7 +79,7 @@ def upload_files():
     
     return jsonify({
         'session_id': session_id,
-        'total_pages': len(all_images),
+        'total_pages': len(all_pages),
         'classifications': {cat: len(imgs) for cat, imgs in classifications.items()}
     })
 

@@ -67,10 +67,10 @@ def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: st
 3. Номер страницы где найдена информация
 """
             
-            # Кодируем изображение в base64
+            # Кодируем PDF файл в base64
             with open(image_path, 'rb') as f:
                 import base64
-                image_data = base64.b64encode(f.read()).decode('utf-8')
+                file_data = base64.b64encode(f.read()).decode('utf-8')
             
             # Отправляем запрос к модели
             response = client.chat(
@@ -78,7 +78,7 @@ def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: st
                 messages=[{
                     'role': 'user',
                     'content': analysis_prompt,
-                    'images': [image_data]
+                    'images': [file_data]
                 }],
                 stream=False,
                 options={'temperature': 0.1, 'num_predict': 2048}
