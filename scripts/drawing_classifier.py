@@ -1,12 +1,6 @@
 """
 Модуль классификации чертежей с использованием модели gemma4:31b через Ollama.
-Классифицирует страницы с чертежами по категориям:
-1. building_elevation - все здание вид сбоку
-2. residential_floor_plan - план этажа вид сверху жилые этажи
-3. non_residential_floor_plan - план этажа вид сверху нежилые этажи
-4. technical_floor - технический этаж
-5. parking_floor - план здания вид сверху парковка
-6. other - другое
+Классифицирует страницы с чертежами по категориям из config/classification_rules.json.
 """
 
 import os
@@ -58,8 +52,12 @@ RETRY_ATTEMPTS = 3
 RETRY_DELAY = 5
 REQUEST_DELAY = 2  # Пауза между запросами (2 секунды)
 
-# Путь к файлу с промптом
-PROMPTS_DIR = Path(__file__).resolve().parent.parent / 'prompts'
+# Пути к файлам конфигурации и промптов
+PROJECT_DIR = Path(__file__).resolve().parent.parent
+CONFIG_DIR = PROJECT_DIR / 'config'
+PROMPTS_DIR = PROJECT_DIR / 'prompts'
+
+CLASSIFICATION_RULES_FILE = CONFIG_DIR / 'classification_rules.json'
 CLASSIFICATION_PROMPT_FILE = PROMPTS_DIR / 'classification_prompt.txt'
 
 logger.info("="*80)
@@ -68,6 +66,30 @@ logger.info("="*80)
 logger.info(f"Модель: {CLASSIFICATION_MODEL}")
 logger.info(f"Пауза между запросами: {REQUEST_DELAY} сек")
 logger.info(f"🔌 Подключение к Ollama: {OLLAMA_URL}")
+
+
+def load_classification_rules() -> Dict[str, Any]:
+    """Загружает правила классификации из JSON файла"""
+    try:
+        with open(CLASSIFICATION_RULES_FILE, 'r', encoding='utf-8') as f:
+            rules = json.load(f)
+            logger.info(f"✅ Загружены правила классификации из {CLASSIFICATION_RULES_FILE}")
+            return rules
+    except Exception as e:
+        logger.error(f"❌ Ошибка загрузки правил из {CLASSIFICATION_RULES_FILE}: {e}")
+        # Возвращаем дефолтные правила
+        return {
+            "categories": {
+                "building_elevation": {"folder_name": "01_building_elevation"},
+                "residential_floor_plan": {"folder_name": "02_residential_floor_plan"},
+                "non_residential_floor_plan": {"folder_name": "03_non_residential_floor_plan"},
+                "technical_floor": {"folder_name": "04_technical_floor"},
+                "parking_floor": {"folder_name": "05_parking_floor"},
+                "other": {"folder_name": "06_other"}
+            },
+            "default_categories": ["building_elevation", "residential_floor_plan", "non_residential_floor_plan", 
+                                   "technical_floor", "parking_floor", "other"]
+        }
 
 
 def load_classification_prompt() -> str:
@@ -196,27 +218,20 @@ def classify_drawings(session_id: str, pages_folder: str, output_folder: str) ->
     Returns:
         Словарь с категориями и списками изображений в каждой
     """
+    # Загружаем правила классификации из JSON
+    rules = load_classification_rules()
+    categories_config = rules.get('categories', {})
+    
     # Создаем клиент Ollama
     client = ollama.Client(host=OLLAMA_URL, timeout=120.0)
     
-    # Создаем папки для категорий
-    categories = {
-        'building_elevation': [],
-        'residential_floor_plan': [],
-        'non_residential_floor_plan': [],
-        'technical_floor': [],
-        'parking_floor': [],
-        'other': []
-    }
+    # Инициализируем категории из конфига
+    categories = {}
+    category_folders = {}
     
-    category_folders = {
-        'building_elevation': '01_building_elevation',
-        'residential_floor_plan': '02_residential_floor_plan',
-        'non_residential_floor_plan': '03_non_residential_floor_plan',
-        'technical_floor': '04_technical_floor',
-        'parking_floor': '05_parking_floor',
-        'other': '06_other'
-    }
+    for cat_key, cat_info in categories_config.items():
+        categories[cat_key] = []
+        category_folders[cat_key] = cat_info.get('folder_name', f'06_{cat_key}')
     
     # Создаем папку drawings и подпапки для категорий внутри session_folder
     drawings_folder = Path(output_folder) / 'drawings'
@@ -291,6 +306,7 @@ def classify_drawings(session_id: str, pages_folder: str, output_folder: str) ->
 def get_relevant_categories_for_question(question: str) -> List[str]:
     """
     Определяет, какие категории чертежей релевантны для данного вопроса.
+    Использует правила из config/classification_rules.json.
     
     Args:
         question: Вопрос пользователя
@@ -298,33 +314,22 @@ def get_relevant_categories_for_question(question: str) -> List[str]:
     Returns:
         Список релевантных категорий
     """
+    # Загружаем правила классификации
+    rules = load_classification_rules()
+    question_mapping = rules.get('question_category_mapping', {})
+    default_categories = rules.get('default_categories', [
+        'building_elevation', 'residential_floor_plan', 'non_residential_floor_plan',
+        'technical_floor', 'parking_floor', 'other'
+    ])
+    
     question_lower = question.lower()
     
-    # Правила сопоставления вопросов и категорий
-    if any(word in question_lower for word in ['этажность', 'высот', 'здани', 'фасад', 'вид сбоку']):
-        return ['building_elevation']
+    # Проверяем сопоставления из конфига
+    for pattern, categories in question_mapping.items():
+        # Разбираем паттерн с regex-подобными символами (|)
+        keywords = pattern.split('|')
+        if any(keyword.strip() in question_lower for keyword in keywords):
+            return categories
     
-    elif any(word in question_lower for word in ['парковк', 'машиномест', 'автомобил', 'гараж']):
-        return ['parking_floor']
-    
-    elif any(word in question_lower for word in ['жил', 'квартир', ' жилой ', 'жилых']):
-        return ['residential_floor_plan']
-    
-    elif any(word in question_lower for word in ['технич', 'инженер', 'оборудован', 'вентиляц', 'насос']):
-        return ['technical_floor']
-    
-    elif any(word in question_lower for word in ['нежил', 'коммерч', 'офис', 'магазин', 'склад']):
-        return ['non_residential_floor_plan']
-    
-    elif any(word in question_lower for word in ['лестниц', 'марш', 'ступен', 'ширин']):
-        # Лестницы могут быть на любых этажах, смотрим все планы этажей
-        return ['residential_floor_plan', 'non_residential_floor_plan', 'technical_floor', 'parking_floor']
-    
-    elif any(word in question_lower for word in ['коридор', 'пути', 'эвакуаци', 'выход', 'расстояни']):
-        # Пути эвакуации могут быть везде
-        return ['residential_floor_plan', 'non_residential_floor_plan', 'technical_floor', 'parking_floor']
-    
-    else:
-        # Если не удается понять вопрос, анализируем все чертежи
-        return ['building_elevation', 'residential_floor_plan', 'non_residential_floor_plan', 
-                'technical_floor', 'parking_floor', 'other']
+    # Если не найдено совпадений, возвращаем все категории по умолчанию
+    return default_categories
