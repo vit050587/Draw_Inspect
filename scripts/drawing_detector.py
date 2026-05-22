@@ -1,144 +1,131 @@
 """
 Модуль детекции страниц с чертежами.
-Использует логику из второго сервиса (ai-pd-analyzer-develop 2) для:
-1. Определения страниц с чертежами в PDF
-2. Перевода изображений в правильную ориентацию
-3. Сохранения идентификаторов файлов и номеров страниц
+Использует логику определения чертежей по размеру страницы (> A3/A4).
+Все страницы сохраняются как отдельные PDF файлы с коррекцией ориентации.
 """
 
-import fitz  # PyMuPDF
 import os
-import ollama
-import re
-import base64
-from PIL import Image
+import fitz  # PyMuPDF
+from pathlib import Path
 from typing import List, Dict, Any
 
-# Конфигурация Ollama - используется модель gemma4:31b для классификации
-OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-CLASSIFICATION_MODEL = os.getenv("DRAWING_CLASSIFICATION_MODEL", "gemma4:31b")
+# Пороговый размер для определения чертежа (большая сторона в см)
+# A4 = 29.7см, A3 = 42см, A2 = 59.4см
+# Устанавливаем порог 45см - всё что больше A3 считается чертежом
+DRAWING_MIN_SIZE_CM = 45.0
 
 
-def detect_drawing_pages(pdf_path: str, output_folder: str) -> List[Dict[str, Any]]:
+def correct_page_orientation(page: fitz.Page) -> int:
     """
-    Определяет страницы PDF, содержащие чертежи.
+    Определяет и корректирует ориентацию страницы.
+    Все чертежи должны быть в альбомной ориентации (ширина > высоты).
+    Возвращает итоговый угол поворота (0, 90, 180, 270).
+    """
+    # Получаем текущую ориентацию из PDF
+    rotation = page.rotation
     
-    Args:
-        pdf_path: Путь к PDF файлу
-        output_folder: Папка для сохранения изображений
-        
-    Returns:
-        Список словарей с информацией о страницах с чертежами
+    # Получаем размеры страницы с учетом текущего rotation
+    rect = page.rect
+    width = rect.width
+    height = rect.height
+    
+    # Учитываем текущий rotation для определения фактической ориентации
+    if rotation in [90, 270]:
+        # При таком rotation ширина и высота меняются местами
+        actual_width = height
+        actual_height = width
+    else:
+        actual_width = width
+        actual_height = height
+    
+    # Определяем, нужно ли повернуть для альбомной ориентации
+    needs_landscape_rotation = 0
+    if actual_width < actual_height:
+        # Страница в портретной ориентации - нужно повернуть на 90°
+        needs_landscape_rotation = 90
+        print(f"      📐 Страница в портретной ориентации ({actual_width:.0f}x{actual_height:.0f}), поворачиваем на 90° для альбомной")
+    
+    # Итоговый угол поворота = исходный rotation + поворот для альбомной ориентации
+    total_rotation = (rotation + needs_landscape_rotation) % 360
+    
+    if rotation != 0 and needs_landscape_rotation == 0:
+        print(f"      🔄 Страница имеет rotation {rotation}°, исправляем")
+    elif needs_landscape_rotation != 0:
+        print(f"      🔄 Поворачиваем на {needs_landscape_rotation}° для альбомной ориентации")
+    
+    return total_rotation
+
+
+def detect_and_save_drawings(pdf_path: str, output_dir: str) -> List[Dict[str, Any]]:
     """
-    drawing_pages = []
+    Сканирует PDF, находит страницы с размером большей стороны > DRAWING_MIN_SIZE_CM.
+    Сохраняет каждую такую страницу в отдельный PDF файл в папке output_dir/drawing_pages/.
+    Страницы с портретной ориентацией автоматически поворачиваются в альбомную.
+    
+    Возвращает список словарей:
+    [{'page_num': 5, 'file_path': '/path/to/dw_page_005.pdf', 'size': '42.0x29.7cm'}, ...]
+    """
+    drawings_dir = Path(output_dir) / "drawing_pages"
+    drawings_dir.mkdir(parents=True, exist_ok=True)
+    
+    drawing_pages_info = []
     
     try:
         doc = fitz.open(pdf_path)
-        filename = os.path.basename(pdf_path)
+        total_pages = len(doc)
+        print(f"🔍 Поиск чертежей в файле ({total_pages} стр.)... Критерий: > {DRAWING_MIN_SIZE_CM} см")
         
-        for page_num in range(len(doc)):
-            page = doc[page_num]
+        for i in range(total_pages):
+            page = doc[i]
+            # Получаем размеры в пунктах и конвертируем в см
+            w_cm = page.rect.width * 2.54 / 72
+            h_cm = page.rect.height * 2.54 / 72
+            max_side = max(w_cm, h_cm)
             
-            # Рендерим страницу в изображение (zoom=2.0 для лучшего качества)
-            mat = fitz.Matrix(2.0, 2.0)
-            pix = page.get_pixmap(matrix=mat)
-            
-            # Сохраняем изображение
-            image_filename = f"{filename}_page_{page_num + 1}.png"
-            image_path = os.path.join(output_folder, image_filename)
-            pix.save(image_path)
-            
-            # Проверяем, является ли страница чертежом
-            is_drawing = _is_drawing_page(image_path)
-            
-            if is_drawing:
-                # Корректируем ориентацию если нужно
-                corrected_image_path = _correct_orientation(image_path, output_folder, image_filename)
+            if max_side > DRAWING_MIN_SIZE_CM:
+                info = {
+                    'page_num': i + 1,
+                    'size': f"{w_cm:.1f}x{h_cm:.1f}cm",
+                    'width_cm': w_cm,
+                    'height_cm': h_cm
+                }
                 
-                drawing_pages.append({
-                    'source_file': filename,
-                    'page_num': page_num + 1,
-                    'image_path': corrected_image_path,
-                    'original_image_path': image_path,
-                    'is_drawing': True
-                })
-            else:
-                # Удаляем не чертежные страницы
-                if os.path.exists(image_path):
-                    os.remove(image_path)
+                # Сохраняем страницу как отдельный PDF с коррекцией ориентации
+                out_filename = f"dw_page_{i+1:03d}.pdf"
+                out_pdf = drawings_dir / out_filename
+                
+                new_doc = fitz.open()
+                
+                # Определяем необходимую коррекцию ориентации
+                rotation = correct_page_orientation(page)
+                
+                # Вставляем страницу с применением поворота
+                new_doc.insert_pdf(doc, from_page=i, to_page=i, rotate=rotation)
+                new_doc.save(str(out_pdf))
+                new_doc.close()
+                
+                info['file_path'] = str(out_pdf)
+                drawing_pages_info.append(info)
+                print(f"   ✅ Стр. {i+1}: Чертеж ({info['size']}) -> {out_filename}")
         
         doc.close()
         
-    except Exception as e:
-        print(f"Ошибка обработки PDF {pdf_path}: {e}")
-    
-    return drawing_pages
-
-
-def _is_drawing_page(image_path: str) -> bool:
-    """
-    Определяет, является ли изображение страницей с чертежом.
-    Использует простую эвристику: наличие линий, текста, технических обозначений.
-    """
-    try:
-        img = Image.open(image_path)
-        width, height = img.size
-        
-        # Конвертируем в grayscale для анализа
-        gray = img.convert('L')
-        pixels = list(gray.getdata())
-        
-        # Вычисляем контрастность (чертежи обычно имеют высокий контраст)
-        min_pixel = min(pixels)
-        max_pixel = max(pixels)
-        contrast = max_pixel - min_pixel
-        
-        # Чертежи обычно имеют высокий контраст и много деталей
-        # Эвристика: если контраст > 200 и изображение достаточно большое
-        if contrast > 150 and width > 500 and height > 500:
-            return True
-        
-        return False
+        if not drawing_pages_info:
+            print("ℹ️ Чертежи не найдены (все страницы <= A4/A3)")
+            
+        return drawing_pages_info
         
     except Exception as e:
-        print(f"Ошибка анализа изображения {image_path}: {e}")
-        return True  # По умолчанию считаем чертежом
-
-
-def _correct_orientation(image_path: str, output_folder: str, image_filename: str) -> str:
-    """
-    Корректирует ориентацию изображения (поворачивает в правильное положение).
-    Чертежи должны быть ориентированы так, чтобы текст читался слева направо,
-    а план здания был в правильной ориентации.
-    """
-    try:
-        img = Image.open(image_path)
-        
-        # Простая эвристика: если ширина значительно меньше высоты, возможно изображение перевернуто
-        width, height = img.size
-        
-        rotation_angle = 0
-        
-        # Если портретная ориентация для плана этажа - возможно нужно повернуть
-        if height > width * 1.3:
-            rotation_angle = 90
-        
-        if rotation_angle != 0:
-            rotated_img = img.rotate(rotation_angle, expand=True)
-            corrected_path = os.path.join(output_folder, image_filename)
-            rotated_img.save(corrected_path)
-            return corrected_path
-        
-        return image_path
-        
-    except Exception as e:
-        print(f"Ошибка коррекции ориентации {image_path}: {e}")
-        return image_path
+        print(f"❌ Ошибка при детекции чертежей: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
 
 
 def extract_all_pages_to_images(pdf_path: str, output_folder: str) -> List[Dict[str, Any]]:
     """
-    Извлекает все страницы из PDF как изображения.
+    Извлекает все страницы из PDF как изображения PNG.
+    Все страницы сохраняются, ориентация корректируется для альбомного формата.
     
     Args:
         pdf_path: Путь к PDF файлу
@@ -155,25 +142,44 @@ def extract_all_pages_to_images(pdf_path: str, output_folder: str) -> List[Dict[
         
         for page_num in range(len(doc)):
             page = doc[page_num]
-            mat = fitz.Matrix(2.0, 2.0)
+            
+            # Определяем необходимую коррекцию ориентации
+            rotation = correct_page_orientation(page)
+            
+            # Рендерим страницу в изображение с учетом поворота
+            # Создаем матрицу с поворотом
+            if rotation == 0:
+                mat = fitz.Matrix(2.0, 2.0)
+            else:
+                # Поворачиваем страницу перед рендерингом
+                mat = fitz.Matrix(2.0, 2.0).prerotate(rotation)
+            
             pix = page.get_pixmap(matrix=mat)
             
             image_filename = f"{filename}_page_{page_num + 1}.png"
             image_path = os.path.join(output_folder, image_filename)
             pix.save(image_path)
             
-            # Корректируем ориентацию
-            corrected_path = _correct_orientation(image_path, output_folder, image_filename)
+            # Получаем размеры в см
+            w_cm = page.rect.width * 2.54 / 72
+            h_cm = page.rect.height * 2.54 / 72
             
             images.append({
-                'path': corrected_path,
+                'path': image_path,
                 'page_num': page_num + 1,
-                'source_file': filename
+                'source_file': filename,
+                'size': f"{w_cm:.1f}x{h_cm:.1f}cm",
+                'width_cm': w_cm,
+                'height_cm': h_cm
             })
         
         doc.close()
         
+        print(f"✅ Извлечено {len(images)} страниц из {filename}")
+        return images
+        
     except Exception as e:
-        print(f"Ошибка обработки PDF {pdf_path}: {e}")
-    
-    return images
+        print(f"❌ Ошибка при извлечении страниц из {pdf_path}: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
