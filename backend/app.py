@@ -64,7 +64,9 @@ def upload_files():
             })
     
     # Классифицируем чертежи и распределяем по папкам
-    classifications = classify_drawings(all_pages, session_folder)
+    # pages_folder - папка где сохранены отдельные PDF страницы
+    pages_folder = os.path.join(session_folder, 'pages')
+    classifications = classify_drawings(session_id, pages_folder, session_folder)
     
     # Сохраняем информацию о классификации
     classification_info = {
