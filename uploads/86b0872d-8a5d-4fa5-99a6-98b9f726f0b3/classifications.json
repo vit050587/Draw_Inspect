@@ -1,0 +1,104 @@
+{
+  "session_id": "86b0872d-8a5d-4fa5-99a6-98b9f726f0b3",
+  "total_pages": 13,
+  "classifications": {
+    "building_elevation": [],
+    "residential_floor_plan": [],
+    "non_residential_floor_plan": [],
+    "technical_floor": [],
+    "parking_floor": [],
+    "other": [
+      {
+        "page_num": 1,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80.pdf",
+        "image_path": "uploads/86b0872d-8a5d-4fa5-99a6-98b9f726f0b3/01-09-00-01-01 ПБ1 (6)_68-80.pdf_page_1.png",
+        "category": "error",
+        "error": "timed out"
+      },
+      {
+        "page_num": 2,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80.pdf",
+        "image_path": "uploads/86b0872d-8a5d-4fa5-99a6-98b9f726f0b3/01-09-00-01-01 ПБ1 (6)_68-80.pdf_page_2.png",
+        "category": "error",
+        "error": "timed out"
+      },
+      {
+        "page_num": 3,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80.pdf",
+        "image_path": "uploads/86b0872d-8a5d-4fa5-99a6-98b9f726f0b3/01-09-00-01-01 ПБ1 (6)_68-80.pdf_page_3.png",
+        "category": "error",
+        "error": "timed out"
+      },
+      {
+        "page_num": 4,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80.pdf",
+        "image_path": "uploads/86b0872d-8a5d-4fa5-99a6-98b9f726f0b3/01-09-00-01-01 ПБ1 (6)_68-80.pdf_page_4.png",
+        "category": "error",
+        "error": "timed out"
+      },
+      {
+        "page_num": 5,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80.pdf",
+        "image_path": "uploads/86b0872d-8a5d-4fa5-99a6-98b9f726f0b3/01-09-00-01-01 ПБ1 (6)_68-80.pdf_page_5.png",
+        "category": "error",
+        "error": "timed out"
+      },
+      {
+        "page_num": 6,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80.pdf",
+        "image_path": "uploads/86b0872d-8a5d-4fa5-99a6-98b9f726f0b3/01-09-00-01-01 ПБ1 (6)_68-80.pdf_page_6.png",
+        "category": "error",
+        "error": "timed out"
+      },
+      {
+        "page_num": 7,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80.pdf",
+        "image_path": "uploads/86b0872d-8a5d-4fa5-99a6-98b9f726f0b3/01-09-00-01-01 ПБ1 (6)_68-80.pdf_page_7.png",
+        "category": "error",
+        "error": "timed out"
+      },
+      {
+        "page_num": 8,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80.pdf",
+        "image_path": "uploads/86b0872d-8a5d-4fa5-99a6-98b9f726f0b3/01-09-00-01-01 ПБ1 (6)_68-80.pdf_page_8.png",
+        "category": "error",
+        "error": "timed out"
+      },
+      {
+        "page_num": 9,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80.pdf",
+        "image_path": "uploads/86b0872d-8a5d-4fa5-99a6-98b9f726f0b3/01-09-00-01-01 ПБ1 (6)_68-80.pdf_page_9.png",
+        "category": "error",
+        "error": "timed out"
+      },
+      {
+        "page_num": 10,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80.pdf",
+        "image_path": "uploads/86b0872d-8a5d-4fa5-99a6-98b9f726f0b3/01-09-00-01-01 ПБ1 (6)_68-80.pdf_page_10.png",
+        "category": "error",
+        "error": "timed out"
+      },
+      {
+        "page_num": 11,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80.pdf",
+        "image_path": "uploads/86b0872d-8a5d-4fa5-99a6-98b9f726f0b3/01-09-00-01-01 ПБ1 (6)_68-80.pdf_page_11.png",
+        "category": "error",
+        "error": "timed out"
+      },
+      {
+        "page_num": 12,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80.pdf",
+        "image_path": "uploads/86b0872d-8a5d-4fa5-99a6-98b9f726f0b3/01-09-00-01-01 ПБ1 (6)_68-80.pdf_page_12.png",
+        "category": "error",
+        "error": "timed out"
+      },
+      {
+        "page_num": 13,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80.pdf",
+        "image_path": "uploads/86b0872d-8a5d-4fa5-99a6-98b9f726f0b3/01-09-00-01-01 ПБ1 (6)_68-80.pdf_page_13.png",
+        "category": "error",
+        "error": "timed out"
+      }
+    ]
+  }
+}
