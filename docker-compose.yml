@@ -1,0 +1,22 @@
+services:
+  web:
+    build: .
+    container_name: draw_inspect_analyzer
+    restart: unless-stopped
+    environment:
+      UPLOAD_FOLDER: /app/uploads
+      OUTPUT_FOLDER: /app/outputs
+      FLASK_APP: backend/app.py
+      FLASK_ENV: development
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-1024}
+    ports:
+      - "127.0.0.1:6002:6002"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+    networks:
+      - draw-inspect-network
+
+networks:
+  draw-inspect-network:
+    driver: bridge
