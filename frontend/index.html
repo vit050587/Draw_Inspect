@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Анализ чертежей - Пожарная безопасность</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .form-group {
+            margin-bottom: 30px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .file-upload-area {
+            border: 3px dashed #bdc3c7;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .file-upload-area:hover,
+        .file-upload-area.dragover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .file-upload-area.has-files {
+            border-color: #27ae60;
+            background: #e8f8f0;
+        }
+        
+        .file-upload-area input[type="file"] {
+            display: none;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            color: #bdc3c7;
+            margin-bottom: 15px;
+        }
+        
+        .file-upload-area.has-files .upload-icon {
+            color: #27ae60;
+        }
+        
+        .file-list {
+            margin-top: 15px;
+            text-align: left;
+        }
+        
+        .file-item {
+            background: #ecf0f1;
+            padding: 8px 15px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 100px;
+            transition: border-color 0.3s;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .response-section {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #ecf0f1;
+            display: none;
+        }
+        
+        .response-section.active {
+            display: block;
+        }
+        
+        .response-section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+        
+        .response-content {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .response-answer {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        
+        .findings-list {
+            margin-top: 20px;
+        }
+        
+        .finding-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            border-left: 3px solid #667eea;
+        }
+        
+        .finding-page {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .confidence-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        
+        .confidence-high {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .confidence-medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .confidence-low {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .page-references {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .page-references strong {
+            color: #2c3e50;
+        }
+        
+        .page-tag {
+            display: inline-block;
+            background: #e9ecef;
+            padding: 5px 12px;
+            border-radius: 15px;
+            margin: 5px 5px 0 0;
+            font-size: 13px;
+            color: #495057;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #dc3545;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .error-message.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Анализ чертежей зданий</h1>
+            <p>Сервис анализа планов зданий для проверки пожарной безопасности</p>
+        </div>
+        
+        <div class="content">
+            <!-- Upload Section -->
+            <div class="form-group">
+                <label for="fileInput">1. Загрузите документы (PDF, изображения)</label>
+                <div class="file-upload-area" id="dropZone">
+                    <input type="file" id="fileInput" multiple accept=".pdf,.png,.jpg,.jpeg">
+                    <div class="upload-icon">📁</div>
+                    <p>Перетащите файлы сюда или кликните для выбора</p>
+                    <p style="font-size: 12px; color: #95a5a6; margin-top: 10px;">
+                        Поддерживаются: PDF, PNG, JPG
+                    </p>
+                    <div class="file-list" id="fileList"></div>
+                </div>
+            </div>
+            
+            <!-- Question Section -->
+            <div class="form-group">
+                <label for="questionInput">2. Ваш вопрос по пожарной безопасности</label>
+                <textarea 
+                    id="questionInput" 
+                    placeholder="Например: Сколько лестниц на жилых этажах? Какова ширина марша у лестниц? Сколько парковочных мест?"
+                ></textarea>
+            </div>
+            
+            <!-- Submit Button -->
+            <button class="btn" id="analyzeBtn" onclick="analyzeDrawings()">
+                🚀 Проанализировать чертежи
+            </button>
+            
+            <!-- Loading -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Анализируем чертежи... Это может занять несколько минут</p>
+            </div>
+            
+            <!-- Error Message -->
+            <div class="error-message" id="errorMessage"></div>
+            
+            <!-- Response Section -->
+            <div class="response-section" id="responseSection">
+                <h2>3. Результат анализа</h2>
+                <div class="response-content">
+                    <div class="response-answer" id="responseAnswer"></div>
+                    
+                    <div class="findings-list" id="findingsList"></div>
+                    
+                    <div class="page-references" id="pageReferences"></div>
+                    
+                    <div style="margin-top: 20px; font-size: 13px; color: #7f8c8d;" id="responseSummary"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let sessionId = null;
+        let selectedFiles = [];
+        
+        // File upload handling
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+        
+        function handleFiles(files) {
+            selectedFiles = Array.from(files);
+            updateFileList();
+        }
+        
+        function updateFileList() {
+            if (selectedFiles.length === 0) {
+                fileList.innerHTML = '';
+                dropZone.classList.remove('has-files');
+                return;
+            }
+            
+            dropZone.classList.add('has-files');
+            fileList.innerHTML = selectedFiles.map(file => `
+                <div class="file-item">
+                    <span>📄 ${file.name}</span>
+                    <span style="font-size: 12px; color: #7f8c8d;">${formatFileSize(file.size)}</span>
+                </div>
+            `).join('');
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+        
+        // Analysis function
+        async function analyzeDrawings() {
+            const question = document.getElementById('questionInput').value.trim();
+            
+            if (selectedFiles.length === 0) {
+                showError('Пожалуйста, загрузите хотя бы один файл с чертежом');
+                return;
+            }
+            
+            if (!question) {
+                showError('Пожалуйста, введите ваш вопрос');
+                return;
+            }
+            
+            // Reset UI
+            hideError();
+            document.getElementById('responseSection').classList.remove('active');
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('analyzeBtn').disabled = true;
+            
+            try {
+                // Step 1: Upload files
+                const formData = new FormData();
+                selectedFiles.forEach(file => {
+                    formData.append('files', file);
+                });
+                
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!uploadResponse.ok) {
+                    throw new Error('Ошибка загрузки файлов');
+                }
+                
+                const uploadData = await uploadResponse.json();
+                sessionId = uploadData.session_id;
+                
+                console.log('Files uploaded, session:', sessionId);
+                console.log('Classifications:', uploadData.classifications);
+                
+                // Step 2: Analyze with question
+                const analyzeResponse = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        question: question
+                    })
+                });
+                
+                if (!analyzeResponse.ok) {
+                    throw new Error('Ошибка анализа');
+                }
+                
+                const result = await analyzeResponse.json();
+                displayResponse(result);
+                
+            } catch (error) {
+                console.error('Analysis error:', error);
+                showError('Произошла ошибка при анализе: ' + error.message);
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('analyzeBtn').disabled = false;
+            }
+        }
+        
+        function displayResponse(result) {
+            const responseSection = document.getElementById('responseSection');
+            const responseAnswer = document.getElementById('responseAnswer');
+            const findingsList = document.getElementById('findingsList');
+            const pageReferences = document.getElementById('pageReferences');
+            const responseSummary = document.getElementById('responseSummary');
+            
+            // Display main answer
+            responseAnswer.textContent = result.answer || 'Ответ не получен';
+            
+            // Display findings
+            if (result.findings && result.findings.length > 0) {
+                findingsList.innerHTML = '<h3 style="margin-bottom: 15px; color: #2c3e50;">Детали:</h3>' + 
+                    result.findings.map(finding => `
+                        <div class="finding-item">
+                            <div class="finding-page">Страница ${finding.page_number}</div>
+                            ${finding.confidence ? `<span class="confidence-badge confidence-${finding.confidence}">${translateConfidence(finding.confidence)}</span>` : ''}
+                            <p style="margin-top: 10px; line-height: 1.5;">${finding.description}</p>
+                        </div>
+                    `).join('');
+            } else {
+                findingsList.innerHTML = '';
+            }
+            
+            // Display page references
+            if (result.page_references && result.page_references.length > 0) {
+                pageReferences.innerHTML = '<strong>Источники:</strong> ' + 
+                    result.page_references.map(page => `<span class="page-tag">Стр. ${page}</span>`).join('');
+            } else {
+                pageReferences.innerHTML = '';
+            }
+            
+            // Display summary
+            responseSummary.textContent = result.summary || '';
+            
+            responseSection.classList.add('active');
+            responseSection.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function translateConfidence(confidence) {
+            const translations = {
+                'high': 'высокая',
+                'medium': 'средняя',
+                'low': 'низкая'
+            };
+            return translations[confidence] || confidence;
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('active');
+        }
+        
+        function hideError() {
+            document.getElementById('errorMessage').classList.remove('active');
+        }
+    </script>
+</body>
+</html>
