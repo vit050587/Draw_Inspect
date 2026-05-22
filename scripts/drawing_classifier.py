@@ -123,11 +123,10 @@ def pdf_to_base64(pdf_path: str) -> str:
         doc = fitz.open(pdf_path)
         page = doc[0]
         
-        # Создаем матрицу для высокого качества
-        zoom = 2.0
-        mat = fitz.Matrix(zoom, zoom)
+        # Используем матрицу 1:1 для сохранения фактического разрешения страницы
+        mat = fitz.Matrix(1, 1)
         
-        # Рендерим страницу в pixmap
+        # Рендерим страницу в pixmap с полным разрешением
         pix = page.get_pixmap(matrix=mat)
         
         # Конвертируем в PNG байты
@@ -222,8 +221,8 @@ def classify_drawings(session_id: str, pages_folder: str, output_folder: str) ->
     rules = load_classification_rules()
     categories_config = rules.get('categories', {})
     
-    # Создаем клиент Ollama
-    client = ollama.Client(host=OLLAMA_URL, timeout=120.0)
+    # Создаем клиент Ollama без таймаута для длительных запросов
+    client = ollama.Client(host=OLLAMA_URL)
     
     # Инициализируем категории из конфига
     categories = {}
