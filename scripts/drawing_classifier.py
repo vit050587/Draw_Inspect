@@ -58,12 +58,41 @@ RETRY_ATTEMPTS = 3
 RETRY_DELAY = 5
 REQUEST_DELAY = 2  # Пауза между запросами (2 секунды)
 
+# Путь к файлу с промптом
+PROMPTS_DIR = Path(__file__).resolve().parent.parent / 'prompts'
+CLASSIFICATION_PROMPT_FILE = PROMPTS_DIR / 'classification_prompt.txt'
+
 logger.info("="*80)
 logger.info("ЗАПУСК КЛАССИФИКАЦИИ ЧЕРТЕЖЕЙ")
 logger.info("="*80)
 logger.info(f"Модель: {CLASSIFICATION_MODEL}")
 logger.info(f"Пауза между запросами: {REQUEST_DELAY} сек")
 logger.info(f"🔌 Подключение к Ollama: {OLLAMA_URL}")
+
+
+def load_classification_prompt() -> str:
+    """Загружает промпт классификации из файла"""
+    try:
+        with open(CLASSIFICATION_PROMPT_FILE, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+    except Exception as e:
+        logger.error(f"❌ Ошибка загрузки промпта из {CLASSIFICATION_PROMPT_FILE}: {e}")
+        # Возвращаем дефолтный промпт в случае ошибки
+        return """Вы эксперт в области архитектурных чертежей и планов зданий.
+
+Внимательно проанализируйте изображение и определите тип чертежа.
+
+Классифицируйте этот чертеж в одну из следующих категорий:
+- building_elevation (все здание вид сбоку/фасад)
+- residential_floor_plan (план этажа вид сверху жилые этажи с квартирами)  
+- non_residential_floor_plan (план этажа вид сверху нежилые этажи: офисы, магазины, коммерция)
+- technical_floor (технический этаж с инженерным оборудованием, вентиляцией, насосами)
+- parking_floor (план здания вид сверху парковка с машиноместами)
+- other (другое: схемы, разрезы, детали, не подходящие под категории выше)
+
+Отвечайте ТОЛЬКО названием категории на английском из списка выше, без пояснений.
+Пример ответа: residential_floor_plan
+"""
 
 
 def pdf_to_base64(pdf_path: str) -> str:
@@ -94,21 +123,8 @@ def pdf_to_base64(pdf_path: str) -> str:
 
 
 def create_classification_prompt() -> str:
-    return """Вы эксперт в области архитектурных чертежей и планов зданий.
-
-Внимательно проанализируйте изображение и определите тип чертежа.
-
-Классифицируйте этот чертеж в одну из следующих категорий:
-- building_elevation (все здание вид сбоку/фасад)
-- residential_floor_plan (план этажа вид сверху жилые этажи с квартирами)  
-- non_residential_floor_plan (план этажа вид сверху нежилые этажи: офисы, магазины, коммерция)
-- technical_floor (технический этаж с инженерным оборудованием, вентиляцией, насосами)
-- parking_floor (план здания вид сверху парковка с машиноместами)
-- other (другое: схемы, разрезы, детали, не подходящие под категории выше)
-
-Отвечайте ТОЛЬКО названием категории на английском из списка выше, без пояснений.
-Пример ответа: residential_floor_plan
-"""
+    """Возвращает промпт классификации из файла"""
+    return load_classification_prompt()
 
 
 def classify_single_page(page_path: str, client: ollama.Client) -> str:

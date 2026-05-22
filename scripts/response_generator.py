@@ -7,42 +7,27 @@ import os
 import ollama
 import json
 from typing import List, Dict, Any
+from pathlib import Path
 
 # Конфигурация Ollama
 OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 RESPONSE_MODEL = os.getenv("RESPONSE_GENERATION_MODEL", "gemma4:31b")
 
+# Путь к файлу с промптом
+PROMPTS_DIR = Path(__file__).resolve().parent.parent / 'prompts'
+RESPONSE_PROMPT_FILE = PROMPTS_DIR / 'response_prompt.txt'
 
-def generate_response(analysis_results: List[Dict[str, Any]], question: str) -> Dict[str, Any]:
-    """
-    Формирует ответ пользователю на основе результатов анализа страниц.
-    
-    Args:
-        analysis_results: Список результатов анализа страниц
-        question: Вопрос пользователя
-        
-    Returns:
-        Словарь с ответом, находками и ссылками на страницы
-    """
-    client = ollama.Client(host=OLLAMA_URL, timeout=300.0)
-    
-    # Подготавливаем контекст из результатов анализа
-    context_parts = []
-    for result in analysis_results:
-        if result.get('relevant', False) and result.get('analysis'):
-            page_num = result.get('page_num', 1)
-            source_file = result.get('source_file', 'unknown')
-            analysis = result.get('analysis', '')
-            
-            context_parts.append(f"""
-СТРАНИЦА {page_num} (файл: {source_file}):
-{analysis}
-""")
-    
-    context = "\n\n".join(context_parts)
-    
-    # Формируем промпт для генерации ответа
-    response_prompt = f"""
+
+def load_response_prompt(question: str, context: str) -> str:
+    """Загружает промпт генерации ответа из файла и подставляет вопрос и контекст"""
+    try:
+        with open(RESPONSE_PROMPT_FILE, 'r', encoding='utf-8') as f:
+            prompt_template = f.read()
+        return prompt_template.format(question=question, context=context)
+    except Exception as e:
+        print(f"❌ Ошибка загрузки промпта из {RESPONSE_PROMPT_FILE}: {e}")
+        # Возвращаем дефолтный промпт в случае ошибки
+        return f"""
 Вы помощник, специализирующийся на анализе пожарной безопасности по чертежам зданий.
 
 ВОПРОС ПОЛЬЗОВАТЕЛЯ: {question}
@@ -73,6 +58,38 @@ def generate_response(analysis_results: List[Dict[str, Any]], question: str) -> 
 
 Отвечайте ТОЛЬКО действительным JSON, без дополнительного текста.
 """
+
+
+def generate_response(analysis_results: List[Dict[str, Any]], question: str) -> Dict[str, Any]:
+    """
+    Формирует ответ пользователю на основе результатов анализа страниц.
+    
+    Args:
+        analysis_results: Список результатов анализа страниц
+        question: Вопрос пользователя
+        
+    Returns:
+        Словарь с ответом, находками и ссылками на страницы
+    """
+    client = ollama.Client(host=OLLAMA_URL, timeout=300.0)
+    
+    # Подготавливаем контекст из результатов анализа
+    context_parts = []
+    for result in analysis_results:
+        if result.get('relevant', False) and result.get('analysis'):
+            page_num = result.get('page_num', 1)
+            source_file = result.get('source_file', 'unknown')
+            analysis = result.get('analysis', '')
+            
+            context_parts.append(f"""
+СТРАНИЦА {page_num} (файл: {source_file}):
+{analysis}
+""")
+    
+    context = "\n\n".join(context_parts)
+    
+    # Формируем промпт для генерации ответа из файла
+    response_prompt = load_response_prompt(question, context)
     
     try:
         response = client.chat(
