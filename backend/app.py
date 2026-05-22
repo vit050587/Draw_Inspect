@@ -3,14 +3,16 @@ from flask_cors import CORS
 import os
 import sys
 import uuid
+import json
+import shutil
 
 # Add parent directory to path for scripts imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from scripts.pdf_processor import extract_pages_to_images
-from scripts.classifier import classify_drawings
-from scripts.vlm_analyzer import analyze_with_vlm
-from scripts.llm_responder import generate_response
+from scripts.drawing_detector import extract_all_pages_to_images
+from scripts.drawing_classifier import classify_drawings, get_relevant_categories_for_question
+from scripts.page_analyzer import analyze_pages
+from scripts.response_generator import generate_response
 
 app = Flask(__name__, static_folder='../frontend', static_url_path='')
 CORS(app)
@@ -35,6 +37,11 @@ def upload_files():
     session_folder = os.path.join(UPLOAD_FOLDER, session_id)
     os.makedirs(session_folder, exist_ok=True)
     
+    # Сохраняем запрос пользователя (будет добавлен позже в /api/analyze)
+    request_info_path = os.path.join(session_folder, 'request.json')
+    with open(request_info_path, 'w', encoding='utf-8') as f:
+        json.dump({'session_id': session_id, 'status': 'files_uploaded'}, f, ensure_ascii=False, indent=2)
+    
     saved_paths = []
     for file in files:
         if file.filename:
@@ -42,27 +49,38 @@ def upload_files():
             file.save(filepath)
             saved_paths.append(filepath)
     
-    # Extract pages to images
+    # Извлекаем все страницы из PDF как изображения
     all_images = []
     for filepath in saved_paths:
         if filepath.lower().endswith('.pdf'):
-            images = extract_pages_to_images(filepath, session_folder)
+            images = extract_all_pages_to_images(filepath, session_folder)
             all_images.extend(images)
         else:
-            # Assume it's an image file
+            # Предполагаем, что это изображение
             all_images.append({
                 'path': filepath,
                 'page_num': 1,
                 'source_file': os.path.basename(filepath)
             })
     
-    # Classify drawings
-    classifications = classify_drawings(all_images)
+    # Классифицируем чертежи и распределяем по папкам
+    classifications = classify_drawings(all_images, session_folder)
+    
+    # Сохраняем информацию о классификации
+    classification_info = {
+        'session_id': session_id,
+        'total_pages': len(all_images),
+        'classifications': classifications
+    }
+    
+    classification_path = os.path.join(session_folder, 'classifications.json')
+    with open(classification_path, 'w', encoding='utf-8') as f:
+        json.dump(classification_info, f, ensure_ascii=False, indent=2)
     
     return jsonify({
         'session_id': session_id,
         'total_pages': len(all_images),
-        'classifications': classifications
+        'classifications': {cat: len(imgs) for cat, imgs in classifications.items()}
     })
 
 @app.route('/api/analyze', methods=['POST'])
@@ -78,18 +96,62 @@ def analyze():
     if not os.path.exists(session_folder):
         return jsonify({'error': 'Session not found'}), 404
     
-    # Collect all image paths from session
-    image_files = []
-    for root, dirs, files in os.walk(session_folder):
-        for file in files:
-            if file.lower().endswith(('.png', '.jpg', '.jpeg')):
-                image_files.append(os.path.join(root, file))
+    # Сохраняем вопрос пользователя в request.json
+    request_info_path = os.path.join(session_folder, 'request.json')
+    with open(request_info_path, 'w', encoding='utf-8') as f:
+        json.dump({
+            'session_id': session_id,
+            'question': question,
+            'status': 'analyzing'
+        }, f, ensure_ascii=False, indent=2)
     
-    # Analyze with VLM
-    vlm_results = analyze_with_vlm(image_files, question)
+    # Загружаем информацию о классификации
+    classification_path = os.path.join(session_folder, 'classifications.json')
+    if not os.path.exists(classification_path):
+        return jsonify({'error': 'Classifications not found'}), 404
     
-    # Generate structured response with LLM
-    response_data = generate_response(vlm_results, question)
+    with open(classification_path, 'r', encoding='utf-8') as f:
+        classification_data = json.load(f)
+    
+    classifications = classification_data['classifications']
+    
+    # Определяем релевантные категории для вопроса
+    relevant_categories = get_relevant_categories_for_question(question)
+    
+    # Собираем изображения из релевантных категорий
+    images_to_analyze = []
+    for category in relevant_categories:
+        if category in classifications:
+            images_to_analyze.extend(classifications[category])
+    
+    # Если нет релевантных изображений, берем все
+    if not images_to_analyze:
+        for category, images in classifications.items():
+            images_to_analyze.extend(images)
+    
+    # Анализируем страницы с использованием gemma4:31b
+    analysis_results = analyze_pages(images_to_analyze, question, session_folder)
+    
+    # Генерируем ответ пользователю
+    response_data = generate_response(analysis_results, question)
+    
+    # Сохраняем результаты анализа и ответ
+    results_path = os.path.join(session_folder, 'results.json')
+    with open(results_path, 'w', encoding='utf-8') as f:
+        json.dump({
+            'question': question,
+            'relevant_categories': relevant_categories,
+            'analysis_results': analysis_results,
+            'response': response_data
+        }, f, ensure_ascii=False, indent=2)
+    
+    # Обновляем статус в request.json
+    with open(request_info_path, 'w', encoding='utf-8') as f:
+        json.dump({
+            'session_id': session_id,
+            'question': question,
+            'status': 'completed'
+        }, f, ensure_ascii=False, indent=2)
     
     return jsonify(response_data)
 
