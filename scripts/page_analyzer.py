@@ -6,11 +6,74 @@
 import os
 import ollama
 import json
+import base64
+import time
+import logging
+from pathlib import Path
 from typing import List, Dict, Any
+import fitz  # PyMuPDF для работы с PDF
+
+# ============================================
+# НАСТРОЙКА ЛОГИРОВАНИЯ
+# ============================================
+
+def setup_logging():
+    current_dir = Path(__file__).resolve().parent  # scripts/
+    project_dir = current_dir.parent  # корень проекта (Draw_Inspect)
+    log_dir = project_dir / 'outputs' / 'logs'
+    
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_dir / 'page_analyzer.log'),
+            logging.StreamHandler()
+        ]
+    )
+    return logging.getLogger(__name__)
+
+logger = setup_logging()
 
 # Конфигурация Ollama
 OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 ANALYSIS_MODEL = os.getenv("DRAWING_ANALYSIS_MODEL", "gemma4:31b")
+
+REQUEST_DELAY = 2  # Пауза между запросами (2 секунды)
+
+logger.info("="*80)
+logger.info("ЗАПУСК АНАЛИЗА ЧЕРТЕЖЕЙ")
+logger.info("="*80)
+logger.info(f"Модель: {ANALYSIS_MODEL}")
+logger.info(f"🔌 Подключение к Ollama: {OLLAMA_URL}")
+
+
+def pdf_to_base64(pdf_path: str) -> str:
+    """Конвертирует PDF страницу в base64 PNG для отправки модели"""
+    try:
+        doc = fitz.open(pdf_path)
+        page = doc[0]
+        
+        # Создаем матрицу для высокого качества
+        zoom = 2.0
+        mat = fitz.Matrix(zoom, zoom)
+        
+        # Рендерим страницу в pixmap
+        pix = page.get_pixmap(matrix=mat)
+        
+        # Конвертируем в PNG байты
+        img_data = pix.tobytes("png")
+        
+        doc.close()
+        
+        size_mb = len(img_data) / (1024 * 1024)
+        logger.info(f"      📐 Размер изображения: {pix.width}x{pix.height} ({size_mb:.1f} МБ)")
+        
+        return base64.b64encode(img_data).decode("utf-8")
+    except Exception as e:
+        logger.error(f"❌ Ошибка конвертации изображения {pdf_path}: {e}")
+        return None
 
 
 def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: str) -> List[Dict[str, Any]]:
@@ -18,7 +81,7 @@ def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: st
     Анализирует страницы с чертежами для ответа на вопрос пользователя.
     
     Args:
-        images: Список словарей с информацией об изображениях
+        images: Список словарей с информацией об изображениях (image_path, page_num, source_file, category)
         question: Вопрос пользователя
         output_folder: Папка для сохранения результатов анализа
         
@@ -26,19 +89,24 @@ def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: st
         Список результатов анализа для каждого изображения
     """
     # Создаем папку для результатов анализа
-    analysis_folder = os.path.join(output_folder, 'analysis')
-    os.makedirs(analysis_folder, exist_ok=True)
+    analysis_folder = Path(output_folder) / 'analysis'
+    analysis_folder.mkdir(parents=True, exist_ok=True)
     
     client = ollama.Client(host=OLLAMA_URL, timeout=300.0)
     
     results = []
+    total_images = len(images)
     
-    for img_info in images:
+    logger.info(f"🔍 Анализ {total_images} страниц для вопроса: {question[:50]}...")
+    
+    for i, img_info in enumerate(images):
         try:
             image_path = img_info['image_path']
             page_num = img_info.get('page_num', 1)
             source_file = img_info.get('source_file', 'unknown')
             category = img_info.get('category', 'unknown')
+            
+            logger.info(f"   Обработка страницы {i+1}/{total_images}: {os.path.basename(image_path)}")
             
             # Формируем промпт для анализа
             analysis_prompt = f"""
@@ -67,28 +135,35 @@ def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: st
 3. Номер страницы где найдена информация
 """
             
-            # Кодируем PDF файл в base64
-            with open(image_path, 'rb') as f:
-                import base64
-                file_data = base64.b64encode(f.read()).decode('utf-8')
+            # Конвертируем PDF в base64 через fitz (рендеринг в PNG)
+            logger.info(f"      🧠 Конвертация PDF страницы в base64...")
+            b64 = pdf_to_base64(image_path)
+            if not b64:
+                raise Exception("Не удалось конвертировать PDF в изображение")
             
             # Отправляем запрос к модели
+            logger.info(f"      🧠 Отправка запроса модели {ANALYSIS_MODEL}...")
+            start_time = time.time()
+            
             response = client.chat(
                 model=ANALYSIS_MODEL,
                 messages=[{
                     'role': 'user',
                     'content': analysis_prompt,
-                    'images': [file_data]
+                    'images': [b64]
                 }],
                 stream=False,
                 options={'temperature': 0.1, 'num_predict': 2048}
             )
             
+            elapsed_time = time.time() - start_time
+            logger.info(f"      ⏱️ Модель отвечала {elapsed_time:.1f} секунд")
+            
             analysis_text = response['message']['content'].strip()
             
             # Сохраняем результат анализа в файл
             result_filename = f"analysis_page_{page_num}_{source_file.replace('.pdf', '')}.json"
-            result_path = os.path.join(analysis_folder, result_filename)
+            result_path = analysis_folder / result_filename
             
             result_data = {
                 'page_num': page_num,
@@ -108,14 +183,18 @@ def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: st
                 'category': category,
                 'image_path': image_path,
                 'analysis': analysis_text,
-                'result_file': result_path,
+                'result_file': str(result_path),
                 'relevant': True
             })
             
-            print(f"Проанализировано: страница {page_num} из {source_file}")
+            logger.info(f"      ✅ Проанализировано: страница {page_num} из {source_file}")
+            
+            # Пауза между запросами для стабильности
+            if i < total_images - 1:
+                time.sleep(REQUEST_DELAY)
             
         except Exception as e:
-            print(f"Ошибка анализа изображения {img_info.get('image_path', 'unknown')}: {e}")
+            logger.error(f"❌ Ошибка анализа изображения {img_info.get('image_path', 'unknown')}: {e}")
             results.append({
                 'page_num': img_info.get('page_num', 1),
                 'source_file': img_info.get('source_file', 'unknown'),
@@ -126,5 +205,9 @@ def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: st
                 'relevant': False,
                 'error': str(e)
             })
+    
+    logger.info("\n" + "="*80)
+    logger.info(f"АНАЛИЗ ЗАВЕРШЕН: {len(results)} страниц обработано")
+    logger.info("="*80)
     
     return results
