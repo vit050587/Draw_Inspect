@@ -221,8 +221,9 @@ def classify_drawings(session_id: str, pages_folder: str, output_folder: str) ->
     rules = load_classification_rules()
     categories_config = rules.get('categories', {})
     
-    # Создаем клиент Ollama без таймаута для длительных запросов
-    client = ollama.Client(host=OLLAMA_URL)
+    # Создаем клиент Ollama с увеличенным таймаутом (10 минут) для обработки больших изображений
+    # timeout=None означал бы бесконечность, но лучше поставить разумный лимит на случай зависания
+    client = ollama.Client(host=OLLAMA_URL, timeout=600)
     
     # Инициализируем категории из конфига
     categories = {}
