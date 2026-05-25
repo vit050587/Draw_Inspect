@@ -1,286 +1,397 @@
 """
-Модуль формирования ответа пользователю на основе анализа страниц.
-Использует модель gemma4:31b через Ollama для генерации структурированного ответа.
+Модуль формирования сводного ответа пользователю на основе JSON-отчетов анализа страниц.
+Загружает все отчеты из папки сессии, агрегирует данные и формирует подробный суммирующий ответ.
 """
 
 import os
-import ollama
 import json
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pathlib import Path
-
-# Конфигурация Ollama
-OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-RESPONSE_MODEL = os.getenv("RESPONSE_GENERATION_MODEL", "gemma4:31b")
-
-# Путь к файлу с промптом
-PROMPTS_DIR = Path(__file__).resolve().parent.parent / 'prompts'
-RESPONSE_PROMPT_FILE = PROMPTS_DIR / 'response_prompt.txt'
+from collections import defaultdict
 
 
-def load_response_prompt(question: str, context: str) -> str:
-    """Загружает промпт генерации ответа из файла и подставляет вопрос и контекст"""
-    try:
-        with open(RESPONSE_PROMPT_FILE, 'r', encoding='utf-8') as f:
-            prompt_template = f.read()
-        return prompt_template.format(question=question, context=context)
-    except Exception as e:
-        print(f"❌ Ошибка загрузки промпта из {RESPONSE_PROMPT_FILE}: {e}")
-        # Возвращаем дефолтный промпт в случае ошибки
-        return f"""
-Вы помощник, специализирующийся на анализе пожарной безопасности по чертежам зданий.
-
-ВОПРОС ПОЛЬЗОВАТЕЛЯ: {question}
-
-РЕЗУЛЬТАТЫ АНАЛИЗА ЧЕРТЕЖЕЙ:
-{context}
-
-На основе приведенного выше анализа предоставьте структурированный ответ:
-
-1. Дайте четкий, прямой ответ на вопрос
-2. Перечислите конкретные находки с точными измерениями, где они доступны
-3. Для каждой находки укажите, на какой странице/чертеже она была найдена
-4. Если информация недоступна или неясна, прямо заявите об этом
-
-Форматируйте ваш ответ в JSON следующим образом:
-{{
-    "answer": "Прямой ответ на вопрос",
-    "findings": [
-        {{
-            "object_name": "Название объекта",
-            "dimensions": "Все размеры объекта",
-            "material": "Материалы из которых построен объект",
-            "page_number": 5,
-            "source_file": "filename.pdf",
-            "confidence": "high/medium/low"
-        }}
-    ],
-    "summary": "Краткое резюме всех находок"
-}}
-
-Отвечайте ТОЛЬКО действительным JSON, без дополнительного текста.
-"""
-
-
-def generate_response(analysis_results: List[Dict[str, Any]], question: str) -> Dict[str, Any]:
+def load_session_reports(session_folder: str) -> List[Dict[str, Any]]:
     """
-    Формирует ответ пользователю на основе результатов анализа страниц.
-    Сначала агрегирует данные из всех JSON-отчетов, затем использует LLM для форматирования.
+    Загружает все JSON-отчеты анализа страниц из папки сессии.
     
     Args:
-        analysis_results: Список результатов анализа страниц (содержит page_num, source_file, analysis, found_objects)
-        question: Вопрос пользователя
+        session_folder: Путь к папке сессии (например, uploads/15fcc465-...)
         
     Returns:
-        Словарь с ответом, находками и ссылками на страницы
+        Список загруженных отчетов
     """
-    client = ollama.Client(host=OLLAMA_URL, timeout=300.0)
+    reports = []
+    session_path = Path(session_folder)
     
-    # Агрегируем данные из всех отчетов
+    if not session_path.exists():
+        print(f"⚠️ Папка сессии не найдена: {session_folder}")
+        return reports
+    
+    # Ищем все файлы analysis_page_*.json
+    report_files = sorted(session_path.glob("analysis_page_*.json"))
+    
+    for report_file in report_files:
+        try:
+            with open(report_file, 'r', encoding='utf-8') as f:
+                report = json.load(f)
+                reports.append(report)
+                print(f"✅ Загружен отчет: {report_file.name}")
+        except Exception as e:
+            print(f"⚠️ Ошибка загрузки отчета {report_file.name}: {e}")
+    
+    print(f"📊 Всего загружено отчетов: {len(reports)}")
+    return reports
+
+
+def extract_findings_from_report(report: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    Извлекает находки из одного отчета анализа страницы.
+    
+    Args:
+        report: JSON-отчет анализа страницы
+        
+    Returns:
+        Список находок с информацией о странице и файле
+    """
+    findings = []
+    
+    # Получаем базовую информацию
+    page_num = report.get('page_num', 1)
+    source_file = report.get('source_file', 'неизвестно')
+    user_query = report.get('user_query', '')
+    
+    # Извлекаем found_objects
+    found_objects = report.get('found_objects', [])
+    
+    if found_objects and isinstance(found_objects, list):
+        for obj in found_objects:
+            finding = {
+                'object_name': obj.get('name', 'Неизвестный объект'),
+                'dimensions': obj.get('characteristics', {}).get('dimensions', 'размеры не указаны'),
+                'material': obj.get('characteristics', {}).get('material', 'материал не указан'),
+                'location': obj.get('characteristics', {}).get('location', ''),
+                'quantity': obj.get('characteristics', {}).get('quantity', ''),
+                'additional_params': obj.get('characteristics', {}).get('additional_params', ''),
+                'page_number': page_num,
+                'source_file': source_file,
+                'confidence': obj.get('confidence', 'medium'),
+                'user_query': user_query
+            }
+            findings.append(finding)
+    
+    return findings
+
+
+def aggregate_findings(all_findings: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """
+    Агрегирует находки по типам объектов, объединяя данные с разных страниц.
+    
+    Args:
+        all_findings: Список всех находок из всех отчетов
+        
+    Returns:
+        Словарь агрегированных данных по каждому типу объекта
+    """
+    aggregated = defaultdict(lambda: {
+        'object_name': '',
+        'dimensions_set': set(),
+        'materials_set': set(),
+        'locations_set': set(),
+        'quantities_set': set(),
+        'pages': set(),
+        'files': set(),
+        'additional_params_set': set(),
+        'confidence': 'medium'
+    })
+    
+    for finding in all_findings:
+        obj_name = finding['object_name']
+        
+        # Обновляем название объекта
+        aggregated[obj_name]['object_name'] = obj_name
+        
+        # Собираем все уникальные значения
+        if finding.get('dimensions') and finding['dimensions'] != 'размеры не указаны':
+            aggregated[obj_name]['dimensions_set'].add(finding['dimensions'])
+        
+        if finding.get('material') and finding['material'] != 'материал не указан':
+            aggregated[obj_name]['materials_set'].add(finding['material'])
+        
+        if finding.get('location'):
+            aggregated[obj_name]['locations_set'].add(finding['location'])
+        
+        if finding.get('quantity'):
+            aggregated[obj_name]['quantities_set'].add(finding['quantity'])
+        
+        if finding.get('additional_params') and finding['additional_params'] != 'размер не указан на чертеже':
+            aggregated[obj_name]['additional_params_set'].add(finding['additional_params'])
+        
+        # Добавляем страницу и файл
+        aggregated[obj_name]['pages'].add(finding['page_number'])
+        aggregated[obj_name]['files'].add(finding['source_file'])
+        
+        # Берем максимальную уверенность
+        if finding.get('confidence') == 'высокая' or finding.get('confidence') == 'high':
+            aggregated[obj_name]['confidence'] = 'высокая'
+    
+    return dict(aggregated)
+
+
+def format_dimensions(dimensions_set: set) -> str:
+    """Форматирует набор размеров в читаемую строку."""
+    if not dimensions_set:
+        return "размеры не указаны"
+    return "; ".join(sorted(dimensions_set))
+
+
+def format_materials(materials_set: set) -> str:
+    """Форматирует набор материалов в читаемую строку."""
+    if not materials_set:
+        return "материал не указан"
+    return "; ".join(sorted(materials_set))
+
+
+def format_locations(locations_set: set) -> str:
+    """Форматирует набор локаций в читаемую строку."""
+    if not locations_set:
+        return "локация не указана"
+    return "; ".join(sorted(locations_set))
+
+
+def format_quantities(quantities_set: set) -> str:
+    """Форматирует набор количеств в читаемую строку."""
+    if not quantities_set:
+        return "количество не указано"
+    return "; ".join(sorted(quantities_set))
+
+
+def format_additional_params(params_set: set) -> str:
+    """Форматирует дополнительные параметры."""
+    if not params_set:
+        return ""
+    return "; ".join(sorted(params_set))
+
+
+def generate_summary_response(
+    aggregated_data: Dict[str, Dict[str, Any]], 
+    user_query: str,
+    total_pages: int,
+    total_files: set
+) -> Dict[str, Any]:
+    """
+    Генерирует подробный сводный ответ на основе агрегированных данных.
+    
+    Args:
+        aggregated_data: Агрегированные данные по объектам
+        user_query: Исходный запрос пользователя
+        total_pages: Общее количество обработанных страниц
+        total_files: Множество файлов
+        
+    Returns:
+        Словарь с ответом, находками и метаданными
+    """
+    if not aggregated_data:
+        return {
+            'answer': f"По запросу '{user_query}' ничего не найдено в предоставленных чертежах.",
+            'findings': [],
+            'page_references': [],
+            'source_files': [],
+            'summary': 'Объекты не найдены',
+            'total_objects': 0,
+            'total_pages': total_pages
+        }
+    
+    # Формируем список находок для ответа
+    findings_list = []
+    answer_parts = []
+    
+    for obj_name, data in aggregated_data.items():
+        # Формируем описание находки
+        dimensions_str = format_dimensions(data['dimensions_set'])
+        materials_str = format_materials(data['materials_set'])
+        locations_str = format_locations(data['locations_set'])
+        quantities_str = format_quantities(data['quantities_set'])
+        
+        pages_list = sorted(data['pages'])
+        files_list = sorted(data['files'])
+        
+        # Создаем запись находки
+        finding = {
+            'object_name': obj_name,
+            'dimensions': dimensions_str,
+            'material': materials_str,
+            'location': locations_str,
+            'quantity': quantities_str,
+            'pages': pages_list,
+            'files': files_list,
+            'confidence': data['confidence']
+        }
+        
+        if data['additional_params_set']:
+            finding['additional_info'] = format_additional_params(data['additional_params_set'])
+        
+        findings_list.append(finding)
+        
+        # Формируем часть ответа для этого объекта
+        answer_part = f"• **{obj_name}**:\n"
+        answer_part += f"  - Размеры: {dimensions_str}\n"
+        answer_part += f"  - Материал: {materials_str}\n"
+        answer_part += f"  - Локация: {locations_str}\n"
+        answer_part += f"  - Количество: {quantities_str}\n"
+        
+        # Форматируем страницы и файлы
+        pages_str = ", ".join(map(str, pages_list))
+        files_short = [f.split('/')[-1] if '/' in f else f for f in files_list]
+        files_short_str = ", ".join(files_short[:3])
+        if len(files_short) > 3:
+            files_short_str += f" и еще {len(files_short) - 3} файл(а)"
+        
+        answer_part += f"  - Найден на страницах: {pages_str}\n"
+        answer_part += f"  - Документы: {files_short_str}\n"
+        
+        answer_parts.append(answer_part)
+    
+    # Формируем полный ответ
+    full_answer = f"По запросу \"{user_query}\" найдено {len(findings_list)} типа объектов:\n\n"
+    full_answer += "\n".join(answer_parts)
+    
+    # Формируем резюме
+    summary = (
+        f"Всего найдено {len(findings_list)} типа объектов. "
+        f"Обработано {total_pages} страниц из {len(total_files)} файла(ов). "
+        f"Объекты распределены по страницам: {', '.join(map(str, sorted(set(p for d in aggregated_data.values() for p in d['pages']))))}"
+    )
+    
+    return {
+        'answer': full_answer,
+        'findings': findings_list,
+        'page_references': sorted(set(p for d in aggregated_data.values() for p in d['pages'])),
+        'source_files': sorted(set(f for d in aggregated_data.values() for f in d['files'])),
+        'summary': summary,
+        'total_objects': len(findings_list),
+        'total_pages': total_pages,
+        'total_files_count': len(total_files)
+    }
+
+
+def generate_response(session_folder: str, user_query: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Основная функция формирования ответа.
+    Загружает все отчеты из сессии, агрегирует данные и формирует сводный ответ.
+    
+    Args:
+        session_folder: Путь к папке сессии с JSON-отчетами
+        user_query: Вопрос пользователя (опционально, берется из отчетов если не указан)
+        
+    Returns:
+        Словарь с полным ответом, находками и метаданными
+    """
+    print(f"\n🔍 Начинаем формирование сводного ответа для сессии: {session_folder}")
+    print("=" * 80)
+    
+    # Загружаем все отчеты из сессии
+    reports = load_session_reports(session_folder)
+    
+    if not reports:
+        return {
+            'answer': "Не найдено отчетов анализа для формирования ответа.",
+            'findings': [],
+            'page_references': [],
+            'source_files': [],
+            'summary': 'Отчеты не найдены',
+            'error': 'No reports found'
+        }
+    
+    # Извлекаем все находки из всех отчетов
     all_findings = []
-    page_numbers = []
-    source_files = set()
+    all_files = set()
+    all_pages = set()
+    queries = set()
+    
+    for report in reports:
+        findings = extract_findings_from_report(report)
+        all_findings.extend(findings)
+        
+        if report.get('source_file'):
+            all_files.add(report['source_file'])
+        if report.get('page_num'):
+            all_pages.add(report['page_num'])
+        if report.get('user_query'):
+            queries.add(report['user_query'])
+    
+    print(f"📈 Всего извлечено находок: {len(all_findings)}")
+    print(f"📁 Всего файлов: {len(all_files)}")
+    print(f"📄 Всего страниц: {len(all_pages)}")
+    
+    # Определяем запрос пользователя
+    effective_query = user_query
+    if not effective_query and queries:
+        effective_query = list(queries)[0]  # Берем первый найденный запрос
+    if not effective_query:
+        effective_query = "анализ объектов"
+    
+    print(f"❓ Запрос пользователя: {effective_query}")
+    
+    # Агрегируем данные по объектам
+    aggregated_data = aggregate_findings(all_findings)
+    print(f"🎯 Уникальных типов объектов: {len(aggregated_data)}")
+    
+    # Генерируем сводный ответ
+    response = generate_summary_response(
+        aggregated_data=aggregated_data,
+        user_query=effective_query,
+        total_pages=len(all_pages),
+        total_files=all_files
+    )
+    
+    print("=" * 80)
+    print("✅ Сводный ответ сформирован")
+    
+    return response
+
+
+# Для совместимости со старым интерфейсом
+def generate_response_legacy(analysis_results: List[Dict[str, Any]], question: str) -> Dict[str, Any]:
+    """
+    Legacy-функция для обратной совместимости.
+    Преобразует старый формат в новый и вызывает основную функцию.
+    """
+    # Извлекаем session_folder из analysis_results если возможно
+    # Или просто используем агрегацию напрямую
+    
+    all_findings = []
+    all_files = set()
+    all_pages = set()
     
     for result in analysis_results:
-        if result.get('relevant', False):
-            page_num = result.get('page_num', 1)
-            source_file = result.get('source_file', 'unknown')
-            
-            page_numbers.append(page_num)
-            source_files.add(source_file)
-            
-            # Извлекаем found_objects напрямую из результата анализа
-            # (page_analyzer.py сохраняет их в поле 'found_objects')
-            found_objects = result.get('found_objects', [])
-            
-            if found_objects and isinstance(found_objects, list):
-                for obj in found_objects:
-                    finding = {
-                        'object_name': obj.get('name', 'Неизвестный объект'),
-                        'dimensions': obj.get('characteristics', {}).get('dimensions', 'размеры не указаны'),
-                        'material': obj.get('characteristics', {}).get('material', 'материал не указан'),
-                        'location': obj.get('characteristics', {}).get('location', ''),
-                        'quantity': obj.get('characteristics', {}).get('quantity', ''),
-                        'page_number': page_num,
-                        'source_file': source_file,
-                        'confidence': obj.get('confidence', 'medium'),
-                        'additional_params': obj.get('characteristics', {}).get('additional_params', '')
-                    }
-                    all_findings.append(finding)
-            else:
-                # Если found_objects нет, используем текстовый анализ
-                analysis_text = result.get('analysis', 'Нет данных')
+        page_num = result.get('page_num', 1)
+        source_file = result.get('source_file', 'unknown')
+        found_objects = result.get('found_objects', [])
+        
+        all_pages.add(page_num)
+        all_files.add(source_file)
+        
+        if found_objects and isinstance(found_objects, list):
+            for obj in found_objects:
                 finding = {
-                    'object_name': 'Объект по вопросу',
-                    'dimensions': 'см. детали в анализе',
-                    'material': 'см. детали в анализе',
-                    'location': '',
-                    'quantity': '',
+                    'object_name': obj.get('name', 'Неизвестный объект'),
+                    'dimensions': obj.get('characteristics', {}).get('dimensions', 'размеры не указаны'),
+                    'material': obj.get('characteristics', {}).get('material', 'материал не указан'),
+                    'location': obj.get('characteristics', {}).get('location', ''),
+                    'quantity': obj.get('characteristics', {}).get('quantity', ''),
+                    'additional_params': obj.get('characteristics', {}).get('additional_params', ''),
                     'page_number': page_num,
                     'source_file': source_file,
-                    'confidence': 'medium',
-                    'analysis_text': analysis_text[:500] if len(analysis_text) > 500 else analysis_text
+                    'confidence': obj.get('confidence', 'medium'),
+                    'user_query': question
                 }
                 all_findings.append(finding)
     
-    # Если не нашли объектов, возвращаем пустой ответ
-    if not all_findings:
-        return {
-            'answer': f"По запросу '{question}' ничего не найдено в предоставленных чертежах.",
-            'findings': [],
-            'page_references': [],
-            'summary': 'Объекты не найдены'
-        }
+    aggregated_data = aggregate_findings(all_findings)
     
-    # Формируем контекст для LLM из агрегированных данных
-    context_parts = []
-    for i, finding in enumerate(all_findings, 1):
-        context_parts.append(f"""
-НАХОДКА {i}:
-- Объект: {finding['object_name']}
-- Размеры: {finding['dimensions']}
-- Материал: {finding['material']}
-- Страница: {finding['page_number']}
-- Файл: {finding['source_file']}
-- Локация: {finding.get('location', '')}
-- Количество: {finding.get('quantity', '')}
-- Дополнительно: {finding.get('additional_params', '')}
-""")
-    
-    context = "\n".join(context_parts)
-    
-    # Формируем промпт для генерации итогового ответа
-    response_prompt = f"""
-Вы помощник, специализирующийся на анализе пожарной безопасности по чертежам зданий.
-
-ВОПРОС ПОЛЬЗОВАТЕЛЯ: {question}
-
-АГРЕГИРОВАННЫЕ ДАННЫЕ ИЗ ВСЕХ СТРАНИЦ:
-{context}
-
-На основе приведенных данных предоставьте ОЧЕНЬ ПОДРОБНЫЙ структурированный ответ:
-
-1. Дайте полный ответ на вопрос, перечислив ВСЕ найденные объекты
-2. Для КАЖДОГО объекта укажите:
-   - На какой странице (номер) и в каком файле найден
-   - Все размеры которые указаны
-   - Материалы из которых сделан объект
-   - Локацию и количество если доступны
-3. Сгруппируйте информацию по объектам (если один тип объекта встречается на нескольких страницах - объедините информацию)
-4. Если информация недоступна или неясна, прямо заявите об этом
-
-Форматируйте ваш ответ в JSON следующим образом:
-{{
-    "answer": "Подробный прямой ответ на вопрос с перечислением всех объектов",
-    "findings": [
-        {{
-            "object_name": "Название объекта",
-            "dimensions": "Все размеры объекта",
-            "material": "Материалы из которых построен объект",
-            "pages": [1, 5, 8],
-            "files": ["file1.pdf", "file2.pdf"],
-            "locations": ["локация 1", "локация 2"],
-            "total_quantity": "общее количество",
-            "confidence": "high/medium/low"
-        }}
-    ],
-    "summary": "Краткое резюме всех находок с общей статистикой"
-}}
-
-Отвечайте ТОЛЬКО действительным JSON, без дополнительного текста.
-"""
-    
-    try:
-        response = client.chat(
-            model=RESPONSE_MODEL,
-            messages=[{'role': 'user', 'content': response_prompt}],
-            stream=False,
-            options={'temperature': 0.1, 'num_predict': 4096}
-        )
-        
-        response_text = response['message']['content'].strip()
-        
-        # Извлекаем JSON из ответа
-        import re
-        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-        if json_match:
-            result = json.loads(json_match.group())
-        else:
-            # Если JSON не найден, создаем структуру вручную из агрегированных данных
-            result = {
-                'answer': f"Найдено {len(all_findings)} объектов по вопросу: {question}",
-                'findings': all_findings,
-                'summary': f'Всего найдено {len(all_findings)} объектов на {len(set(page_numbers))} страницах'
-            }
-        
-        # Добавляем ссылки на страницы
-        result['page_references'] = sorted(list(set(page_numbers)))
-        result['source_files'] = list(source_files)
-        
-        return result
-        
-    except Exception as e:
-        print(f"Ошибка генерации ответа: {e}")
-        # Возвращаем ответ в случае ошибки - используем агрегированные данные напрямую
-        return _generate_fallback_response(all_findings, question, page_numbers, source_files, str(e))
-
-
-def _generate_fallback_response(all_findings: List[Dict[str, Any]], question: str, page_numbers: List[int], source_files: set, error: str) -> Dict[str, Any]:
-    """
-    Генерирует резервный ответ в случае ошибки LLM на основе агрегированных данных.
-    """
-    if not all_findings:
-        return {
-            'answer': f"По запросу '{question}' ничего не найдено.",
-            'findings': [],
-            'page_references': [],
-            'source_files': list(source_files),
-            'summary': 'Объекты не найдены',
-            'error': error
-        }
-    
-    # Группируем находки по имени объекта
-    grouped = {}
-    for finding in all_findings:
-        obj_name = finding['object_name']
-        if obj_name not in grouped:
-            grouped[obj_name] = {
-                'object_name': obj_name,
-                'dimensions': finding['dimensions'],
-                'material': finding['material'],
-                'pages': [],
-                'files': [],
-                'locations': [],
-                'quantities': [],
-                'confidence': finding['confidence']
-            }
-        grouped[obj_name]['pages'].append(finding['page_number'])
-        grouped[obj_name]['files'].append(finding['source_file'])
-        if finding.get('location'):
-            grouped[obj_name]['locations'].append(finding['location'])
-        if finding.get('quantity'):
-            grouped[obj_name]['quantities'].append(finding['quantity'])
-    
-    # Формируем итоговые находки с объединением данных
-    final_findings = []
-    for obj_name, data in grouped.items():
-        final_finding = {
-            'object_name': data['object_name'],
-            'dimensions': data['dimensions'],
-            'material': data['material'],
-            'pages': sorted(list(set(data['pages']))),
-            'files': list(set(data['files'])),
-            'locations': data['locations'] if data['locations'] else ['локация не указана'],
-            'total_quantity': ', '.join(data['quantities']) if data['quantities'] else 'количество не указано',
-            'confidence': data['confidence']
-        }
-        final_findings.append(final_finding)
-    
-    return {
-        'answer': f"Найдено {len(final_findings)} типов объектов по вопросу: {question}",
-        'findings': final_findings,
-        'page_references': sorted(list(set(page_numbers))),
-        'source_files': list(source_files),
-        'summary': f'Всего найдено {len(final_findings)} типов объектов на {len(set(page_numbers))} страницах из {len(source_files)} файла(ов)',
-        'error': error
-    }
+    return generate_summary_response(
+        aggregated_data=aggregated_data,
+        user_query=question,
+        total_pages=len(all_pages),
+        total_files=all_files
+    )
