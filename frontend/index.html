@@ -313,11 +313,24 @@
             
             <!-- Question Section -->
             <div class="form-group">
-                <label for="questionInput">2. Ваш вопрос по пожарной безопасности</label>
-                <textarea 
-                    id="questionInput" 
-                    placeholder="Например: Сколько лестниц на жилых этажах? Какова ширина марша у лестниц? Сколько парковочных мест?"
-                ></textarea>
+                <label for="questionSelect">2. Выберите тип анализа</label>
+                <select id="questionSelect" style="width: 100%; padding: 15px; border: 2px solid #bdc3c7; border-radius: 8px; font-size: 16px; font-family: inherit; background: white; cursor: pointer;">
+                    <option value="" disabled selected>-- Выберите запрос --</option>
+                    <option value="конструктивные элементы">Конструктивные элементы</option>
+                    <option value="несущие стены">Несущие стены</option>
+                    <option value="санитарные узлы">Санитарные узлы</option>
+                    <option value="стены">Стены</option>
+                    <option value="двери">Двери</option>
+                    <option value="лестницы, ширина и материал">Лестницы, ширина и материал</option>
+                    <option value="колонны, сечение и материал">Колонны, сечение и материал</option>
+                    <option value="перегородки">Перегородки</option>
+                    <option value="несущие конструкции">Несущие конструкции</option>
+                    <option value="утеплитель, где используется">Утеплитель, где используется</option>
+                    <option value="фундамент, размеры и материал">Фундамент, размеры и материал</option>
+                    <option value="окна, размеры">Окна, размеры</option>
+                    <option value="эвакуационные выходы">Эвакуационные выходы</option>
+                    <option value="минераловатный утеплитель">Минераловатный утеплитель</option>
+                </select>
             </div>
             
             <!-- Submit Button -->
@@ -409,7 +422,7 @@
         
         // Analysis function
         async function analyzeDrawings() {
-            const question = document.getElementById('questionInput').value.trim();
+            const question = document.getElementById('questionSelect').value.trim();
             
             if (selectedFiles.length === 0) {
                 showError('Пожалуйста, загрузите хотя бы один файл с чертежом');
@@ -417,7 +430,7 @@
             }
             
             if (!question) {
-                showError('Пожалуйста, введите ваш вопрос');
+                showError('Пожалуйста, выберите тип анализа из списка');
                 return;
             }
             
