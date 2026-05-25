@@ -497,26 +497,63 @@
             const pageReferences = document.getElementById('pageReferences');
             const responseSummary = document.getElementById('responseSummary');
             
-            // Display main answer
-            responseAnswer.textContent = result.answer || 'Ответ не получен';
+            // Преобразуем Markdown-подобное форматирование в HTML
+            function formatAnswer(text) {
+                if (!text) return '';
+                
+                // Заменяем маркеры списка на HTML
+                let html = text.replace(/\n/g, '<br>');
+                html = html.replace(/• \*\*(.+?)\*\*:/g, '<div style="margin: 15px 0; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid #667eea;"><strong>$1</strong>:');
+                html = html.replace(/  - /g, '<br>&nbsp;&nbsp;• ');
+                
+                return html;
+            }
             
-            // Display findings
+            // Display main answer с форматированием
+            responseAnswer.innerHTML = formatAnswer(result.answer) || 'Ответ не получен';
+            
+            // Display findings в новом формате - показываем детали по каждому объекту
             if (result.findings && result.findings.length > 0) {
-                findingsList.innerHTML = '<h3 style="margin-bottom: 15px; color: #2c3e50;">Детали:</h3>' + 
-                    result.findings.map(finding => `
-                        <div class="finding-item">
-                            <div class="finding-page">Страница ${finding.page_number}</div>
-                            ${finding.confidence ? `<span class="confidence-badge confidence-${finding.confidence}">${translateConfidence(finding.confidence)}</span>` : ''}
-                            <p style="margin-top: 10px; line-height: 1.5;">${finding.description}</p>
+                let findingsHtml = '<h3 style="margin-bottom: 15px; color: #2c3e50;">Детали по объектам:</h3>';
+                
+                result.findings.forEach((finding, index) => {
+                    const pagesStr = Array.isArray(finding.pages) ? finding.pages.join(', ') : finding.pages;
+                    const filesStr = Array.isArray(finding.files) ? finding.files.join(', ') : finding.files;
+                    
+                    findingsHtml += `
+                        <div class="finding-item" style="border-left-color: #27ae60;">
+                            <h4 style="margin-bottom: 10px; color: #2c3e50;">${index + 1}. ${finding.object_name}</h4>
+                            
+                            <div style="display: grid; gap: 8px; font-size: 14px;">
+                                <div><strong>📏 Размеры:</strong> ${finding.dimensions || 'не указаны'}</div>
+                                <div><strong>🧱 Материал:</strong> ${finding.material || 'не указан'}</div>
+                                ${finding.location ? `<div><strong>📍 Локация:</strong> ${finding.location}</div>` : ''}
+                                ${finding.quantity ? `<div><strong>🔢 Количество:</strong> ${finding.quantity}</div>` : ''}
+                                
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ecf0f1;">
+                                    <strong>📄 Найден в документах:</strong><br>
+                                    <span style="color: #7f8c8d; font-size: 13px;">${filesStr || 'не указано'}</span>
+                                </div>
+                                
+                                <div style="margin-top: 5px;">
+                                    <strong>Страницы:</strong> 
+                                    ${Array.isArray(finding.pages) ? finding.pages.map(p => `<span class="page-tag" style="background: #667eea; color: white;">${p}</span>`).join('') : `<span class="page-tag">${finding.pages}</span>`}
+                                </div>
+                                
+                                ${finding.confidence ? `<div style="margin-top: 5px;"><span class="confidence-badge confidence-${finding.confidence}">${translateConfidence(finding.confidence)}</span> достоверность</div>` : ''}
+                            </div>
                         </div>
-                    `).join('');
+                    `;
+                });
+                
+                findingsList.innerHTML = findingsHtml;
             } else {
                 findingsList.innerHTML = '';
             }
             
-            // Display page references
+            // Display page references - все страницы где что-то найдено
             if (result.page_references && result.page_references.length > 0) {
-                pageReferences.innerHTML = '<strong>Источники:</strong> ' + 
+                pageReferences.innerHTML = '<strong>📑 Обработанные страницы:</strong> ' + 
                     result.page_references.map(page => `<span class="page-tag">Стр. ${page}</span>`).join('');
             } else {
                 pageReferences.innerHTML = '';
