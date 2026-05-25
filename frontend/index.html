@@ -447,7 +447,7 @@
                 sessionId = uploadData.session_id;
                 
                 console.log('Files uploaded, session:', sessionId);
-                console.log('Classifications:', uploadData.classifications);
+                console.log('Total pages:', uploadData.total_pages);
                 
                 // Step 2: Analyze with question
                 const analyzeResponse = await fetch('/api/analyze', {
