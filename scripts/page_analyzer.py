@@ -187,7 +187,7 @@ def save_analysis_to_excel(data: dict, question: str, page_num: int, output_fold
     """Сохраняет результаты анализа в Excel файл с размерами и материалами"""
     
     safe_query = question.replace(' ', '_').replace(',', '').replace('"', '').replace('?', '').replace('\\', '')[:40]
-    excel_path = os.path.join(output_folder, 'analysis', f"page_{page_num}_{safe_query}.xlsx")
+    excel_path = os.path.join(output_folder, f"page_{page_num}_{safe_query}.xlsx")
     
     # Стили Excel
     header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
@@ -327,7 +327,7 @@ def save_analysis_to_csv(data: dict, question: str, page_num: int, output_folder
     """Сохраняет результаты анализа в CSV файл"""
     
     safe_query = question.replace(' ', '_').replace(',', '').replace('"', '').replace('?', '').replace('\\', '')[:40]
-    csv_path = os.path.join(output_folder, 'analysis', f"page_{page_num}_{safe_query}.csv")
+    csv_path = os.path.join(output_folder, f"page_{page_num}_{safe_query}.csv")
     
     if "found_objects" in data and data["found_objects"]:
         with open(csv_path, 'w', encoding='utf-8-sig') as f:
@@ -350,7 +350,7 @@ def save_analysis_to_txt(data: dict, question: str, page_num: int, output_folder
     """Сохраняет результаты анализа в текстовый файл"""
     
     safe_query = question.replace(' ', '_').replace(',', '').replace('"', '').replace('?', '').replace('\\', '')[:40]
-    txt_path = os.path.join(output_folder, 'analysis', f"page_{page_num}_{safe_query}.txt")
+    txt_path = os.path.join(output_folder, f"page_{page_num}_{safe_query}.txt")
     
     report_lines = []
     report_lines.append("="*100)
@@ -474,9 +474,9 @@ def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: st
     Returns:
         Список результатов анализа для каждого изображения
     """
-    # Создаем папку для результатов анализа
-    analysis_folder = Path(output_folder) / 'analysis'
-    analysis_folder.mkdir(parents=True, exist_ok=True)
+    # Используем output_folder напрямую (без подпапки analysis)
+    results_folder = Path(output_folder)
+    results_folder.mkdir(parents=True, exist_ok=True)
     
     client = ollama.Client(host=OLLAMA_URL, timeout=300.0)
     
@@ -541,28 +541,28 @@ def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: st
             
             # 1. JSON
             json_filename = f"analysis_page_{page_num}_{source_file.replace('.pdf', '')}.json"
-            json_path = analysis_folder / json_filename
+            json_path = results_folder / json_filename
             with open(json_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             logger.info(f"         ✅ JSON: {json_path}")
             
             # 2. Excel
             try:
-                excel_path = save_analysis_to_excel(data, question, page_num, str(analysis_folder))
+                excel_path = save_analysis_to_excel(data, question, page_num, str(results_folder))
                 logger.info(f"         ✅ Excel: {excel_path}")
             except Exception as e:
                 logger.error(f"         ⚠️ Ошибка сохранения Excel: {e}")
             
             # 3. TXT
             try:
-                txt_path = save_analysis_to_txt(data, question, page_num, str(analysis_folder))
+                txt_path = save_analysis_to_txt(data, question, page_num, str(results_folder))
                 logger.info(f"         ✅ TXT: {txt_path}")
             except Exception as e:
                 logger.error(f"         ⚠️ Ошибка сохранения TXT: {e}")
             
             # 4. CSV
             try:
-                csv_path = save_analysis_to_csv(data, question, page_num, str(analysis_folder))
+                csv_path = save_analysis_to_csv(data, question, page_num, str(results_folder))
                 logger.info(f"         ✅ CSV: {csv_path}")
             except Exception as e:
                 logger.error(f"         ⚠️ Ошибка сохранения CSV: {e}")
@@ -607,7 +607,7 @@ def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: st
     
     logger.info("\n" + "="*80)
     logger.info(f"АНАЛИЗ ЗАВЕРШЕН: {len(results)} страниц обработано")
-    logger.info(f"Все результаты сохранены в папке: {analysis_folder}")
+    logger.info(f"Все результаты сохранены в папке: {results_folder}")
     logger.info("="*80)
     
     return results
