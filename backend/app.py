@@ -113,8 +113,8 @@ def analyze():
     # Анализируем ВСЕ страницы с чертежами (классификация удалена)
     analysis_results = analyze_pages(all_pages, question, session_folder)
     
-    # Генерируем ответ пользователю
-    response_data = generate_response(analysis_results, question)
+    # Генерируем ответ пользователю - передаем session_folder и question
+    response_data = generate_response(session_folder, question)
     
     # Сохраняем результаты анализа и ответ
     results_path = os.path.join(session_folder, 'results.json')
