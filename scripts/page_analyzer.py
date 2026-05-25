@@ -121,7 +121,7 @@ def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: st
     Анализирует страницы с чертежами для ответа на вопрос пользователя.
     
     Args:
-        images: Список словарей с информацией об изображениях (image_path, page_num, source_file, category)
+        images: Список словарей с информацией об изображениях (path, page_num, source_file, size)
         question: Вопрос пользователя
         output_folder: Папка для сохранения результатов анализа
         
@@ -141,10 +141,10 @@ def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: st
     
     for i, img_info in enumerate(images):
         try:
-            image_path = img_info['image_path']
+            image_path = img_info.get('path') or img_info.get('image_path')
             page_num = img_info.get('page_num', 1)
             source_file = img_info.get('source_file', 'unknown')
-            category = img_info.get('category', 'unknown')
+            size = img_info.get('size', 'unknown')
             
             logger.info(f"   Обработка страницы {i+1}/{total_images}: {os.path.basename(image_path)}")
             
@@ -184,7 +184,7 @@ def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: st
             result_data = {
                 'page_num': page_num,
                 'source_file': source_file,
-                'category': category,
+                'size': size,
                 'question': question,
                 'analysis': analysis_text,
                 'image_path': image_path
@@ -196,7 +196,7 @@ def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: st
             results.append({
                 'page_num': page_num,
                 'source_file': source_file,
-                'category': category,
+                'size': size,
                 'image_path': image_path,
                 'analysis': analysis_text,
                 'result_file': str(result_path),
@@ -210,12 +210,12 @@ def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: st
                 time.sleep(REQUEST_DELAY)
             
         except Exception as e:
-            logger.error(f"❌ Ошибка анализа изображения {img_info.get('image_path', 'unknown')}: {e}")
+            logger.error(f"❌ Ошибка анализа изображения {img_info.get('path', img_info.get('image_path', 'unknown'))}: {e}")
             results.append({
                 'page_num': img_info.get('page_num', 1),
                 'source_file': img_info.get('source_file', 'unknown'),
-                'category': img_info.get('category', 'unknown'),
-                'image_path': img_info.get('image_path', ''),
+                'size': img_info.get('size', 'unknown'),
+                'image_path': img_info.get('path', img_info.get('image_path', '')),
                 'analysis': f"Ошибка анализа: {str(e)}",
                 'result_file': None,
                 'relevant': False,

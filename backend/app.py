@@ -10,7 +10,6 @@ import shutil
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from scripts.drawing_detector import extract_drawing_pages_to_pdf
-from scripts.drawing_classifier import classify_drawings, get_relevant_categories_for_question
 from scripts.page_analyzer import analyze_pages
 from scripts.response_generator import generate_response
 
@@ -63,26 +62,20 @@ def upload_files():
                 'source_file': os.path.basename(filepath)
             })
     
-    # Классифицируем чертежи и распределяем по папкам
-    # pages_folder - папка где сохранены отдельные PDF страницы
-    pages_folder = os.path.join(session_folder, 'pages')
-    classifications = classify_drawings(session_id, pages_folder, session_folder)
-    
-    # Сохраняем информацию о классификации
-    classification_info = {
+    # Сохраняем информацию о найденных страницах
+    pages_info = {
         'session_id': session_id,
         'total_pages': len(all_pages),
-        'classifications': classifications
+        'pages': all_pages
     }
     
-    classification_path = os.path.join(session_folder, 'classifications.json')
-    with open(classification_path, 'w', encoding='utf-8') as f:
-        json.dump(classification_info, f, ensure_ascii=False, indent=2)
+    pages_info_path = os.path.join(session_folder, 'pages_info.json')
+    with open(pages_info_path, 'w', encoding='utf-8') as f:
+        json.dump(pages_info, f, ensure_ascii=False, indent=2)
     
     return jsonify({
         'session_id': session_id,
-        'total_pages': len(all_pages),
-        'classifications': {cat: len(imgs) for cat, imgs in classifications.items()}
+        'total_pages': len(all_pages)
     })
 
 @app.route('/api/analyze', methods=['POST'])
@@ -107,32 +100,18 @@ def analyze():
             'status': 'analyzing'
         }, f, ensure_ascii=False, indent=2)
     
-    # Загружаем информацию о классификации
-    classification_path = os.path.join(session_folder, 'classifications.json')
-    if not os.path.exists(classification_path):
-        return jsonify({'error': 'Classifications not found'}), 404
+    # Загружаем информацию о страницах
+    pages_info_path = os.path.join(session_folder, 'pages_info.json')
+    if not os.path.exists(pages_info_path):
+        return jsonify({'error': 'Pages info not found'}), 404
     
-    with open(classification_path, 'r', encoding='utf-8') as f:
-        classification_data = json.load(f)
+    with open(pages_info_path, 'r', encoding='utf-8') as f:
+        pages_data = json.load(f)
     
-    classifications = classification_data['classifications']
+    all_pages = pages_data['pages']
     
-    # Определяем релевантные категории для вопроса
-    relevant_categories = get_relevant_categories_for_question(question)
-    
-    # Собираем изображения из релевантных категорий
-    images_to_analyze = []
-    for category in relevant_categories:
-        if category in classifications:
-            images_to_analyze.extend(classifications[category])
-    
-    # Если нет релевантных изображений, берем все
-    if not images_to_analyze:
-        for category, images in classifications.items():
-            images_to_analyze.extend(images)
-    
-    # Анализируем страницы с использованием gemma4:31b
-    analysis_results = analyze_pages(images_to_analyze, question, session_folder)
+    # Анализируем ВСЕ страницы с чертежами (классификация удалена)
+    analysis_results = analyze_pages(all_pages, question, session_folder)
     
     # Генерируем ответ пользователю
     response_data = generate_response(analysis_results, question)
@@ -142,7 +121,6 @@ def analyze():
     with open(results_path, 'w', encoding='utf-8') as f:
         json.dump({
             'question': question,
-            'relevant_categories': relevant_categories,
             'analysis_results': analysis_results,
             'response': response_data
         }, f, ensure_ascii=False, indent=2)
