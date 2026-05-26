@@ -1,0 +1,10 @@
+    { "code_category": "ЭЛ 10", "category": "Земляные сооружения, фундаменты" },
+    { "code_category": "ЭЛ 20", "category": "Крыша" },
+    { "code_category": "ЭЛ 30", "category": "Архитектурные и конструктивные элементы" },
+    { "code_category": "ЭЛ 35", "category": "Контроль прохода и управления доступом" },
+    { "code_category": "ЭЛ 40", "category": "Инженерное оснащение" },
+    { "code_category": "ЭЛ 50", "category": "Гидротехнические сооружения" },
+    { "code_category": "ЭЛ 60", "category": "Железные дороги, метрополитен" },
+    { "code_category": "ЭЛ 70", "category": "Автомобильные дороги" },
+    { "code_category": "ЭЛ 90", "category": "Оснащение серверных" },
+    { "code_category": "ЭЛ 91", "category": "Проект организации строительства" }
