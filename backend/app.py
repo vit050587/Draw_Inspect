@@ -19,6 +19,11 @@ CORS(app)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# Отдаем файлы из папки data для frontend
+@app.route('/data/<path:filename>')
+def serve_data(filename):
+    return send_from_directory(os.path.join(os.path.dirname(__file__), '..', 'data'), filename)
+
 @app.route('/')
 def serve_frontend():
     return send_from_directory(app.static_folder, 'index.html')
