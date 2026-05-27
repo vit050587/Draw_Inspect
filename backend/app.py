@@ -22,6 +22,19 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # Отдаем файлы из папки data для frontend
 @app.route('/data/<path:filename>')
 def serve_data(filename):
+    # Для class.json используем специальную обработку (файл в формате JSON Lines)
+    if filename == 'class.json':
+        data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'class.json')
+        try:
+            with open(data_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            # Удаляем пробелы по краям и запятые в конце каждой строки, парсим как JSON Lines
+            cleaned_lines = [line.strip().rstrip(',') for line in lines if line.strip()]
+            data = [json.loads(line) for line in cleaned_lines]
+            return jsonify(data)
+        except Exception as e:
+            return jsonify({'error': f'Failed to parse class.json: {str(e)}'}), 500
+    
     return send_from_directory(os.path.join(os.path.dirname(__file__), '..', 'data'), filename)
 
 @app.route('/')
