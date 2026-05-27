@@ -313,24 +313,12 @@
             
             <!-- Question Section -->
             <div class="form-group">
-                <label for="questionSelect">2. Выберите тип анализа</label>
+                <label for="questionSelect">2. Выберите класс элемента или введите свой вариант</label>
                 <select id="questionSelect" style="width: 100%; padding: 15px; border: 2px solid #bdc3c7; border-radius: 8px; font-size: 16px; font-family: inherit; background: white; cursor: pointer;">
-                    <option value="" disabled selected>-- Выберите запрос --</option>
-                    <option value="конструктивные элементы">Конструктивные элементы</option>
-                    <option value="несущие стены">Несущие стены</option>
-                    <option value="санитарные узлы">Санитарные узлы</option>
-                    <option value="стены">Стены</option>
-                    <option value="двери">Двери</option>
-                    <option value="лестницы, ширина и материал">Лестницы, ширина и материал</option>
-                    <option value="колонны, сечение и материал">Колонны, сечение и материал</option>
-                    <option value="перегородки">Перегородки</option>
-                    <option value="несущие конструкции">Несущие конструкции</option>
-                    <option value="утеплитель, где используется">Утеплитель, где используется</option>
-                    <option value="фундамент, размеры и материал">Фундамент, размеры и материал</option>
-                    <option value="окна, размеры">Окна, размеры</option>
-                    <option value="эвакуационные выходы">Эвакуационные выходы</option>
-                    <option value="минераловатный утеплитель">Минераловатный утеплитель</option>
+                    <option value="" disabled selected>-- Загрузка классов... --</option>
                 </select>
+                <input type="text" id="customQuestionInput" placeholder="Или введите свой запрос..." style="width: 100%; padding: 15px; border: 2px solid #bdc3c7; border-radius: 8px; font-size: 16px; font-family: inherit; margin-top: 10px; display: none;">
+                <button type="button" id="toggleCustomBtn" onclick="toggleCustomInput()" style="margin-top: 10px; padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">✏️ Ввести свой вариант</button>
             </div>
             
             <!-- Submit Button -->
@@ -366,11 +354,74 @@
     <script>
         let sessionId = null;
         let selectedFiles = [];
+        let classOptions = [];
+        
+        // Загрузка классов из class.json при инициализации
+        async function loadClassOptions() {
+            try {
+                const response = await fetch('/data/class.json');
+                if (!response.ok) {
+                    throw new Error('Не удалось загрузить class.json');
+                }
+                const data = await response.json();
+                
+                // Проверяем, массив ли это или объект с массивом внутри
+                let classes = Array.isArray(data) ? data : (data.classes || []);
+                
+                classOptions = classes.map(item => ({
+                    value: item.class,
+                    text: `${item.class} (${item.code_class})`
+                }));
+                
+                // Сортируем по алфавиту
+                classOptions.sort((a, b) => a.text.localeCompare(b.text));
+                
+                // Заполняем select
+                const select = document.getElementById('questionSelect');
+                select.innerHTML = '<option value="" disabled selected>-- Выберите класс элемента --</option>';
+                classOptions.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt.value;
+                    option.textContent = opt.text;
+                    select.appendChild(option);
+                });
+                
+                console.log(`Загружено ${classOptions.length} классов`);
+            } catch (error) {
+                console.error('Ошибка загрузки классов:', error);
+                const select = document.getElementById('questionSelect');
+                select.innerHTML = '<option value="" disabled selected>-- Ошибка загрузки классов --</option>';
+            }
+        }
+        
+        // Переключение режима ввода своего варианта
+        function toggleCustomInput() {
+            const customInput = document.getElementById('customQuestionInput');
+            const toggleBtn = document.getElementById('toggleCustomBtn');
+            const select = document.getElementById('questionSelect');
+            
+            if (customInput.style.display === 'none') {
+                customInput.style.display = 'block';
+                select.disabled = true;
+                toggleBtn.textContent = '✓ Использовать список';
+                toggleBtn.style.background = '#667eea';
+                customInput.focus();
+            } else {
+                customInput.style.display = 'none';
+                customInput.value = '';
+                select.disabled = false;
+                toggleBtn.textContent = '✏️ Ввести свой вариант';
+                toggleBtn.style.background = '#95a5a6';
+            }
+        }
         
         // File upload handling
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
         const fileList = document.getElementById('fileList');
+        
+        // Загружаем классы при загрузке страницы
+        document.addEventListener('DOMContentLoaded', loadClassOptions);
         
         dropZone.addEventListener('click', () => fileInput.click());
         
@@ -422,7 +473,16 @@
         
         // Analysis function
         async function analyzeDrawings() {
-            const question = document.getElementById('questionSelect').value.trim();
+            const select = document.getElementById('questionSelect');
+            const customInput = document.getElementById('customQuestionInput');
+            
+            // Определяем вопрос: из custom input или из select
+            let question = '';
+            if (customInput.style.display === 'block' && customInput.value.trim()) {
+                question = customInput.value.trim();
+            } else {
+                question = select.value.trim();
+            }
             
             if (selectedFiles.length === 0) {
                 showError('Пожалуйста, загрузите хотя бы один файл с чертежом');
@@ -430,7 +490,7 @@
             }
             
             if (!question) {
-                showError('Пожалуйста, выберите тип анализа из списка');
+                showError('Пожалуйста, выберите тип анализа из списка или введите свой вариант');
                 return;
             }
             
