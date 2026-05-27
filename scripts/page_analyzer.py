@@ -56,88 +56,47 @@ logger.info(f"Модель: {ANALYSIS_MODEL}")
 logger.info(f"🔌 Подключение к Ollama: {OLLAMA_URL}")
 
 
-def get_analysis_prompt(question: str) -> str:
-    """Формирует промпт анализа с обязательным указанием размеров и материалов"""
-    return f"""Ты - эксперт по строительным чертежам с 20-летним опытом.
 
-ПОЛЬЗОВАТЕЛЬ ЗАПРАШИВАЕТ: "{question}"
+def get_analysis_prompt(question: str, filename: str = "", page_num: int = 0) -> str:
+    """Формирует упрощенный промпт анализа с жесткими условиями поиска"""
+    return f"""Ты - эксперт по строительным чертежам.
 
-ЗАМЕТКА: Запрос может быть:
-- Классом элемента из справочника (например: "Стена", "Колонна", "Перегородка", "Фундамент" и т.д.)
-- Произвольным описанием (например: "несущие стены", "лестницы ширина и материал", "утеплитель где используется")
+ЗАПРОС ПОЛЬЗОВАТЕЛЯ: "{question}"
 
-Найди на чертеже ВСЮ информацию, связанную с этим запросом.
+ЗАДАЧА:
+1. Найди на чертеже ВСЕ объекты, соответствующие запросу
+2. Для каждого объекта укажи ТОЛЬКО:
+   - размеры (все найденные линейные размеры в мм или м)
+   - материал изготовления
 
-
-❗ КРИТИЧЕСКИ ВАЖНЫЕ ТРЕБОВАНИЯ (НЕ ИГНОРИРУЙ!):
-
-
-Для КАЖДОГО найденного объекта ТЫ ОБЯЗАН указать:
-
-1. ЛИНЕЙНЫЙ РАЗМЕР (поле "dimensions"):
-   - Для стен: толщина в мм (например: "толщина 380 мм")
-   - Для колонн: сечение в мм (например: "400x400 мм")
-   - Для балок: высота и ширина (например: "высота 450 мм, ширина 200 мм")
-   - Для дверей/окон: ширина проема (например: "ширина 900 мм")
-   - Для лестниц: ширина марша (например: "ширина 1200 мм")
-   - Для перекрытий: толщина (например: "толщина 220 мм")
-   - Для фундаментов: ширина подошвы (например: "ширина 600 мм")
-   
-   ЕСЛИ РАЗМЕР НЕ УКАЗАН НА ЧЕРТЕЖЕ - НАПИШИ "размер не указан на чертеже"
-
-2. МАТЕРИАЛ (поле "material"):
-   - Из чего сделан объект (кирпич, бетон, железобетон, металл, дерево, газоблок и т.д.)
-   - Если есть марка материала - укажи (М150, В25, С245, D500 и т.д.)
-   
-   ЕСЛИ МАТЕРИАЛ НЕ УКАЗАН НА ЧЕРТЕЖЕ - НАПИШИ "материал не указан на чертеже"
-
-================================================================================
-
-ТРЕБОВАНИЯ К ПОИСКУ:
-1. Внимательно посмотри на чертеж
-2. Найди ВСЕ объекты, соответствующие запросу "{question}"
-   - Если запрос - класс элемента (Стена, Колонна, Фундамент и т.д.), ищи все объекты этого типа
-   - Если запрос содержит дополнительные условия (например "ширина и материал"), обязательно укажи эти параметры
-3. Используй легенду и таблицу условных обозначений, если они есть
-4. Связывай графические обозначения (штриховки) с текстовыми подписями
+ТРЕБОВАНИЯ:
+- Ищи строго по запросу "{question}"
+- Если запрос - класс элемента (Стена, Колонна, Фундамент), ищи все объекты этого типа
+- Указывай ВСЕ размеры, которые видишь на чертеже для этого объекта
+- Указывай точный материал из обозначений на чертеже
 
 ВЕРНИ ОТВЕТ ТОЛЬКО В ФОРМАТЕ JSON (БЕЗ ЛИШНЕГО ТЕКСТА):
 
 {{
-  "user_query": "{question}",
-  
-  "analysis_info": {{
-    "timestamp": "время анализа",
-    "pdf_file": "имя файла"
-  }},
-  
   "found_objects": [
     {{
-      "object_id": "1",
-      "name": "название объекта (стена/колонна/дверь/лестница и т.д.)",
-      "characteristics": {{
-        "dimensions": "ОБЯЗАТЕЛЬНО: линейные размеры в мм или м (если нет - напиши 'размер не указан на чертеже')",
-        "material": "ОБЯЗАТЕЛЬНО: материал изготовления (если нет - напиши 'материал не указан на чертеже')",
-        "location": "расположение на чертеже (оси, координаты, этаж)",
-        "quantity": "количество одинаковых элементов",
-        "additional_params": "дополнительные параметры (ГОСТ, серия, класс бетона и т.д.)"
-      }},
-      "confidence": "высокая/средняя/низкая - насколько уверен в ответе"
+      "name": "название объекта",
+      "dimensions": "все размеры через запятую (например: 400x400 мм, высота 3000 мм)",
+      "material": "материал изготовления",
+      "filename": "{filename}",
+      "page": {page_num}
     }}
-  ],
-  
-  "not_found": "Если ничего не найдено по запросу - напиши 'По запросу \"{question}\" ничего не найдено на чертеже'",
-  
-  "detailed_answer": "МАКСИМАЛЬНО ПОДРОБНЫЙ ОТВЕТ на русском языке. Для каждого найденного объекта опиши его линейные размеры и материал. Если данные отсутствуют на чертеже - честно укажи это.",
-  
-  "summary": {{
-    "total_found": "количество найденных объектов",
-    "key_insights": ["ключевые выводы по запросу (с указанием размеров и материалов)"]
-  }}
+  ]
 }}
 
-НЕ ЗАБУДЬ: КАЖДЫЙ ОБЪЕКТ ДОЛЖЕН ИМЕТЬ "dimensions" И "material"!
-ОТВЕТЬ ТОЛЬКО JSON, без пояснений до или после."""
+ПРАВИЛА:
+- Если объект не найден - верни пустой массив: "found_objects": []
+- Если размер не указан - пиши "размер не указан"
+- Если материал не указан - пиши "материал не указан"
+- НЕ добавляй поля confidence, location, quantity, additional_params
+- НЕ пиши никакой текст до или после JSON
+- ОТВЕЧАЙ ТОЛЬКО НА РУССКОМ ЯЗЫКЕ"""
+
 
 
 def pdf_to_base64_enhanced(pdf_path: str, dpi: int = 300) -> str:
@@ -210,16 +169,12 @@ def save_analysis_to_excel(data: dict, question: str, page_num: int, output_fold
         if "found_objects" in data and data["found_objects"]:
             objects_data = []
             for obj in data["found_objects"]:
-                chars = obj.get('characteristics', {})
                 objects_data.append({
-                    "ID": obj.get('object_id', ''),
                     "Объект": obj.get('name', ''),
-                    "Линейный размер": chars.get('dimensions', 'не указан'),
-                    "Материал": chars.get('material', 'не указан'),
-                    "Расположение": chars.get('location', 'не указано'),
-                    "Количество": chars.get('quantity', '1'),
-                    "Доп. параметры": chars.get('additional_params', ''),
-                    "Уверенность": obj.get('confidence', '')
+                    "Размеры": obj.get('dimensions', 'не указан'),
+                    "Материал": obj.get('material', 'не указан'),
+                    "Файл": obj.get('filename', ''),
+                    "Страница": obj.get('page', '')
                 })
             
             df_objects = pd.DataFrame(objects_data)
@@ -247,17 +202,12 @@ def save_analysis_to_excel(data: dict, question: str, page_num: int, output_fold
         
         # Лист 2: Сводка
         summary_data = []
-        if "analysis_info" in data:
-            for key, val in data["analysis_info"].items():
-                summary_data.append({"Параметр": key, "Значение": val})
-        
         summary_data.append({"Параметр": "Запрос пользователя", "Значение": question})
         summary_data.append({"Параметр": "Номер страницы", "Значение": page_num})
         summary_data.append({"Параметр": "Дата анализа", "Значение": datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
         
-        if "summary" in data:
-            summ = data["summary"]
-            summary_data.append({"Параметр": "Всего найдено объектов", "Значение": summ.get('total_found', '0')})
+        if "found_objects" in data and data["found_objects"]:
+            summary_data.append({"Параметр": "Всего найдено объектов", "Значение": len(data["found_objects"])})
         
         df_summary = pd.DataFrame(summary_data)
         df_summary.to_excel(writer, sheet_name="Сводка", index=False)
@@ -272,27 +222,11 @@ def save_analysis_to_excel(data: dict, question: str, page_num: int, output_fold
                     cell.fill = header_fill
                     cell.font = header_font
         
-        # Лист 3: Детальное описание
-        if "detailed_answer" in data:
-            desc_df = pd.DataFrame({"Детальное описание": [data["detailed_answer"]]})
-            desc_df.to_excel(writer, sheet_name="Детальное описание", index=False)
-            
-            worksheet = writer.sheets["Детальное описание"]
-            worksheet.column_dimensions['A'].width = 100
-            for row in worksheet.iter_rows(min_row=2, max_row=2):
-                for cell in row:
-                    cell.alignment = Alignment(wrap_text=True, vertical="top")
-            worksheet.row_dimensions[2].height = max(200, len(data["detailed_answer"]) // 5)
-            
-            worksheet['A1'].fill = header_fill
-            worksheet['A1'].font = header_font
-        
-        # Лист 4: Статистика по материалам
+        # Лист 3: Статистика по материалам
         if "found_objects" in data and data["found_objects"]:
             materials_stats = {}
             for obj in data["found_objects"]:
-                chars = obj.get('characteristics', {})
-                mat = chars.get('material', 'не указан')
+                mat = obj.get('material', 'не указан')
                 if mat not in materials_stats:
                     materials_stats[mat] = 0
                 materials_stats[mat] += 1
@@ -304,21 +238,6 @@ def save_analysis_to_excel(data: dict, question: str, page_num: int, output_fold
             worksheet = writer.sheets["Статистика по материалам"]
             worksheet.column_dimensions['A'].width = 35
             worksheet.column_dimensions['B'].width = 20
-            for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row):
-                for cell in row:
-                    cell.border = border
-                    if cell.row == 1:
-                        cell.fill = header_fill
-                        cell.font = header_font
-        
-        # Лист 5: Ключевые выводы
-        if "summary" in data and data["summary"].get('key_insights'):
-            insights_data = [{"Вывод": insight} for insight in data["summary"]['key_insights']]
-            df_insights = pd.DataFrame(insights_data)
-            df_insights.to_excel(writer, sheet_name="Ключевые выводы", index=False)
-            
-            worksheet = writer.sheets["Ключевые выводы"]
-            worksheet.column_dimensions['A'].width = 80
             for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row):
                 for cell in row:
                     cell.border = border
@@ -337,17 +256,13 @@ def save_analysis_to_csv(data: dict, question: str, page_num: int, output_folder
     
     if "found_objects" in data and data["found_objects"]:
         with open(csv_path, 'w', encoding='utf-8-sig') as f:
-            f.write("ID;Объект;Линейный размер;Материал;Расположение;Количество;Доп.параметры;Уверенность\n")
+            f.write("Объект;Размеры;Материал;Файл;Страница\n")
             for obj in data["found_objects"]:
-                chars = obj.get('characteristics', {})
-                f.write(f"{obj.get('object_id', '')};"
-                       f"{obj.get('name', '')};"
-                       f"{chars.get('dimensions', '')};"
-                       f"{chars.get('material', '')};"
-                       f"{chars.get('location', '')};"
-                       f"{chars.get('quantity', '')};"
-                       f"{chars.get('additional_params', '')};"
-                       f"{obj.get('confidence', '')}\n")
+                f.write(f"{obj.get('name', '')};"
+                       f"{obj.get('dimensions', '')};"
+                       f"{obj.get('material', '')};"
+                       f"{obj.get('filename', '')};"
+                       f"{obj.get('page', '')}\n")
     
     return csv_path
 
@@ -375,53 +290,33 @@ def save_analysis_to_txt(data: dict, question: str, page_num: int, output_folder
         report_lines.append(data.get("raw_response", "Неизвестная ошибка")[:2000])
         return "\n".join(report_lines)
     
-    if "detailed_answer" in data:
-        report_lines.append("ПОДРОБНЫЙ ОТВЕТ:")
-        report_lines.append("-"*100)
-        report_lines.append(data["detailed_answer"])
-        report_lines.append("")
-        report_lines.append("")
-    
     if "found_objects" in data and data["found_objects"]:
         report_lines.append("НАЙДЕННЫЕ ОБЪЕКТЫ (с размерами и материалами):")
         report_lines.append("-"*100)
         
         for obj in data["found_objects"]:
-            report_lines.append(f"\n   [{obj.get('object_id', '?')}] {obj.get('name', 'Объект')}")
+            report_lines.append(f"\n   [{obj.get('name', 'Объект')}]")
             report_lines.append(f"   {'─'*70}")
             
-            chars = obj.get('characteristics', {})
+            dims = obj.get('dimensions', 'не указаны')
+            report_lines.append(f"   РАЗМЕРЫ: {dims}")
             
-            dims = chars.get('dimensions', 'не указаны')
-            report_lines.append(f"   ЛИНЕЙНЫЙ РАЗМЕР: {dims}")
-            
-            mat = chars.get('material', 'не указан')
+            mat = obj.get('material', 'не указан')
             report_lines.append(f"   МАТЕРИАЛ: {mat}")
             
-            if chars.get('location'):
-                report_lines.append(f"   Расположение: {chars['location']}")
-            if chars.get('quantity'):
-                report_lines.append(f"   Количество: {chars['quantity']}")
-            if chars.get('additional_params'):
-                report_lines.append(f"   Доп. параметры: {chars['additional_params']}")
-            
-            report_lines.append(f"   Уверенность: {obj.get('confidence', 'не указана')}")
+            if obj.get('filename'):
+                report_lines.append(f"   Файл: {obj['filename']}")
+            if obj.get('page'):
+                report_lines.append(f"   Страница: {obj['page']}")
         
         report_lines.append("")
     
-    if data.get("not_found") and data["not_found"] != "Не найдено на чертеже":
-        report_lines.append(f"{data['not_found']}")
-        report_lines.append("")
-    
-    if "summary" in data:
-        summ = data["summary"]
-        report_lines.append("📊 КЛЮЧЕВЫЕ ВЫВОДЫ:")
-        report_lines.append("-"*100)
-        report_lines.append(f"   • Всего найдено: {summ.get('total_found', 'не указано')}")
-        
-        if summ.get('key_insights'):
-            for insight in summ['key_insights']:
-                report_lines.append(f"   • {insight}")
+    report_lines.append("📊 ИТОГ:")
+    report_lines.append("-"*100)
+    if "found_objects" in data and data["found_objects"]:
+        report_lines.append(f"   • Всего найдено: {len(data['found_objects'])} объектов")
+    else:
+        report_lines.append("   • По запросу ничего не найдено")
     
     report_lines.append("")
     report_lines.append("="*100)
@@ -501,8 +396,8 @@ def analyze_pages(images: List[Dict[str, Any]], question: str, output_folder: st
             
             logger.info(f"   Обработка страницы {i+1}/{total_images}: {os.path.basename(image_path)}")
             
-            # Формируем промпт для анализа
-            analysis_prompt = get_analysis_prompt(question)
+            # Формируем промпт для анализа с передачей имени файла и номера страницы
+            analysis_prompt = get_analysis_prompt(question, filename=source_file, page_num=img_info.get('page_num', i+1))
             
             # Конвертируем PDF в base64 с улучшением качества
             logger.info(f"      🧠 Конвертация PDF страницы в base64 (enhanced)...")

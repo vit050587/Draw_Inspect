@@ -67,14 +67,10 @@ def extract_findings_from_report(report: Dict[str, Any]) -> List[Dict[str, Any]]
         for obj in found_objects:
             finding = {
                 'object_name': obj.get('name', 'Неизвестный объект'),
-                'dimensions': obj.get('characteristics', {}).get('dimensions', 'размеры не указаны'),
-                'material': obj.get('characteristics', {}).get('material', 'материал не указан'),
-                'location': obj.get('characteristics', {}).get('location', ''),
-                'quantity': obj.get('characteristics', {}).get('quantity', ''),
-                'additional_params': obj.get('characteristics', {}).get('additional_params', ''),
+                'dimensions': obj.get('dimensions', 'размеры не указаны'),
+                'material': obj.get('material', 'материал не указан'),
                 'page_number': page_num,
                 'source_file': source_file,
-                'confidence': obj.get('confidence', 'medium'),
                 'user_query': user_query
             }
             findings.append(finding)
@@ -96,12 +92,8 @@ def aggregate_findings(all_findings: List[Dict[str, Any]]) -> Dict[str, Dict[str
         'object_name': '',
         'dimensions_set': set(),
         'materials_set': set(),
-        'locations_set': set(),
-        'quantities_set': set(),
         'pages': set(),
-        'files': set(),
-        'additional_params_set': set(),
-        'confidence': 'medium'
+        'files': set()
     })
     
     for finding in all_findings:
@@ -117,22 +109,9 @@ def aggregate_findings(all_findings: List[Dict[str, Any]]) -> Dict[str, Dict[str
         if finding.get('material') and finding['material'] != 'материал не указан':
             aggregated[obj_name]['materials_set'].add(finding['material'])
         
-        if finding.get('location'):
-            aggregated[obj_name]['locations_set'].add(finding['location'])
-        
-        if finding.get('quantity'):
-            aggregated[obj_name]['quantities_set'].add(finding['quantity'])
-        
-        if finding.get('additional_params') and finding['additional_params'] != 'размер не указан на чертеже':
-            aggregated[obj_name]['additional_params_set'].add(finding['additional_params'])
-        
         # Добавляем страницу и файл
         aggregated[obj_name]['pages'].add(finding['page_number'])
         aggregated[obj_name]['files'].add(finding['source_file'])
-        
-        # Берем максимальную уверенность
-        if finding.get('confidence') == 'высокая' or finding.get('confidence') == 'high':
-            aggregated[obj_name]['confidence'] = 'высокая'
     
     return dict(aggregated)
 
@@ -149,27 +128,6 @@ def format_materials(materials_set: set) -> str:
     if not materials_set:
         return "материал не указан"
     return "; ".join(sorted(materials_set))
-
-
-def format_locations(locations_set: set) -> str:
-    """Форматирует набор локаций в читаемую строку."""
-    if not locations_set:
-        return "локация не указана"
-    return "; ".join(sorted(locations_set))
-
-
-def format_quantities(quantities_set: set) -> str:
-    """Форматирует набор количеств в читаемую строку."""
-    if not quantities_set:
-        return "количество не указано"
-    return "; ".join(sorted(quantities_set))
-
-
-def format_additional_params(params_set: set) -> str:
-    """Форматирует дополнительные параметры."""
-    if not params_set:
-        return ""
-    return "; ".join(sorted(params_set))
 
 
 def generate_summary_response(
@@ -209,8 +167,6 @@ def generate_summary_response(
         # Формируем описание находки
         dimensions_str = format_dimensions(data['dimensions_set'])
         materials_str = format_materials(data['materials_set'])
-        locations_str = format_locations(data['locations_set'])
-        quantities_str = format_quantities(data['quantities_set'])
         
         pages_list = sorted(data['pages'])
         files_list = sorted(data['files'])
@@ -220,15 +176,9 @@ def generate_summary_response(
             'object_name': obj_name,
             'dimensions': dimensions_str,
             'material': materials_str,
-            'location': locations_str,
-            'quantity': quantities_str,
             'pages': pages_list,
-            'files': files_list,
-            'confidence': data['confidence']
+            'files': files_list
         }
-        
-        if data['additional_params_set']:
-            finding['additional_info'] = format_additional_params(data['additional_params_set'])
         
         findings_list.append(finding)
         
@@ -236,8 +186,6 @@ def generate_summary_response(
         answer_part = f"• **{obj_name}**:\n"
         answer_part += f"  - Размеры: {dimensions_str}\n"
         answer_part += f"  - Материал: {materials_str}\n"
-        answer_part += f"  - Локация: {locations_str}\n"
-        answer_part += f"  - Количество: {quantities_str}\n"
         
         # Форматируем страницы и файлы
         pages_str = ", ".join(map(str, pages_list))
