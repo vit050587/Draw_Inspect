@@ -337,7 +337,7 @@
             
             <!-- Response Section -->
             <div class="response-section" id="responseSection">
-                <h2>3. Результат анализа</h2>
+                <h2>3. Результат поиска элементов</h2>
                 <div class="response-content">
                     <div class="response-answer" id="responseAnswer"></div>
                     
@@ -346,6 +346,45 @@
                     <div class="page-references" id="pageReferences"></div>
                     
                     <div style="margin-top: 20px; font-size: 13px; color: #7f8c8d;" id="responseSummary"></div>
+                </div>
+            </div>
+            
+            <!-- Classification Section -->
+            <div class="response-section" id="classificationSection">
+                <h2>4. Классификация найденных элементов</h2>
+                <div class="response-content">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <p style="font-size: 14px; color: #7f8c8d; margin: 0;">Результаты сопоставления со справочником элементов</p>
+                        <div style="display: flex; gap: 10px;">
+                            <a id="downloadExcelBtn" class="btn" style="width: auto; padding: 10px 20px; font-size: 14px; display: none;" download>
+                                📥 Скачать Excel
+                            </a>
+                            <a id="downloadJsonBtn" class="btn" style="width: auto; padding: 10px 20px; font-size: 14px; background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); display: none;" download>
+                                📥 Скачать JSON
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                            <thead>
+                                <tr style="background: #2c3e50; color: white;">
+                                    <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Объект</th>
+                                    <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Категория</th>
+                                    <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Назначение</th>
+                                    <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Класс</th>
+                                    <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Подкласс</th>
+                                    <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">IFC</th>
+                                    <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Файл</th>
+                                    <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Страница</th>
+                                    <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Уверенность</th>
+                                </tr>
+                            </thead>
+                            <tbody id="classificationTableBody">
+                                <tr><td colspan="9" style="padding: 20px; text-align: center; color: #7f8c8d;">Загрузка...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -624,6 +663,59 @@
             
             responseSection.classList.add('active');
             responseSection.scrollIntoView({ behavior: 'smooth' });
+            
+            // Отображение классификации элементов
+            displayClassification(result.classification);
+        }
+        
+        function displayClassification(classification) {
+            const classificationSection = document.getElementById('classificationSection');
+            const tableBody = document.getElementById('classificationTableBody');
+            const downloadExcelBtn = document.getElementById('downloadExcelBtn');
+            const downloadJsonBtn = document.getElementById('downloadJsonBtn');
+            
+            if (!classification || classification.error || !classification.classified_elements || classification.classified_elements.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="9" style="padding: 20px; text-align: center; color: #7f8c8d;">Классификация не выполнена или элементы не найдены</td></tr>';
+                downloadExcelBtn.style.display = 'none';
+                downloadJsonBtn.style.display = 'none';
+                return;
+            }
+            
+            const elements = classification.classified_elements;
+            let html = '';
+            
+            elements.forEach(elem => {
+                const matchConf = elem.match_confidence || 'medium';
+                const confClass = matchConf === 'high' ? 'confidence-high' : (matchConf === 'medium' ? 'confidence-medium' : 'confidence-low');
+                const confRu = translateConfidence(matchConf);
+                
+                html += `
+                    <tr style="background: white;">
+                        <td style="padding: 10px; border: 1px solid #ddd;">${elem.original_object_name || '-'}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${elem.category || '-'}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${elem.purpose || '-'}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${elem.class || '-'}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${elem.subclass || '-'}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${elem.ifcClass || '-'}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${elem.source_file || '-'}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${elem.page_number || '-'}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><span class="confidence-badge ${confClass}">${confRu}</span></td>
+                    </tr>
+                `;
+            });
+            
+            tableBody.innerHTML = html;
+            
+            // Настраиваем кнопки скачивания
+            if (sessionId) {
+                downloadExcelBtn.href = `/api/download/${sessionId}/classified_elements.xlsx`;
+                downloadExcelBtn.style.display = 'inline-block';
+                downloadJsonBtn.href = `/api/download/${sessionId}/classified_elements.json`;
+                downloadJsonBtn.style.display = 'inline-block';
+            }
+            
+            classificationSection.classList.add('active');
+            classificationSection.scrollIntoView({ behavior: 'smooth' });
         }
         
         function translateConfidence(confidence) {
