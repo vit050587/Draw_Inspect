@@ -1,41 +1,41 @@
 ```
-# Python
+# Compiled Python files
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
+
+# Uploads directory (contains runtime data)
+uploads/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+
+# Environment files
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
 
 # Dependencies
 .venv/
 venv/
-env/
-.env
-.env.local
-.env.*
+node_modules/
 
 # Build artifacts
 dist/
 build/
 target/
 
-# Logs
-*.log
-
-# Temporary files
-*.tmp
-*.swp
-*.swo
-
-# OS generated files
-.DS_Store
-Thumbs.db
-
 # Coverage reports
-.coverage
 coverage/
 htmlcov/
+.coverage
 
-# IDE specific
-.vscode/
-.idea/
+# Python cache
+.mypy_cache/
+.pytest_cache/
 ```

@@ -187,12 +187,12 @@ def extract_drawing_pages_to_pdf(pdf_path: str, output_folder: str) -> List[Dict
             new_doc.insert_pdf(doc, from_page=page_num, to_page=page_num, rotate=rotation)
             
             page_filename = f"{filename}_page_{page_num + 1}.pdf"
-            page_path = str(pages_dir / page_filename)
-            new_doc.save(page_path)
+            page_path = pages_dir / page_filename
+            new_doc.save(str(page_path))
             new_doc.close()
             
             pages.append({
-                'path': page_path,
+                'path': str(page_path.absolute()),
                 'page_num': page_num + 1,
                 'source_file': filename,
                 'size': f"{w_cm:.1f}x{h_cm:.1f}cm",
