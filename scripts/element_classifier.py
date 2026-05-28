@@ -141,7 +141,8 @@ def classify_elements(session_folder, elements_json_path):
                 'source_file': elem.get('source_file', ''),
                 'page_number': elem.get('page_number', 1),
                 'dimensions': elem.get('dimensions', ''),
-                'material': elem.get('material', '')
+                'material': elem.get('material', ''),
+                'quantity': elem.get('quantity', '')
             })
         else:
             # Не нашли хорошего совпадения — добавляем в список для LLM
@@ -200,7 +201,8 @@ def classify_elements(session_folder, elements_json_path):
             "source_file": "filename.pdf",
             "page_number": 5,
             "dimensions": "...",
-            "material": "..."
+            "material": "...",
+            "quantity": "..."
         }}
     ]
 }}
@@ -245,7 +247,8 @@ def classify_elements(session_folder, elements_json_path):
                     'source_file': elem.get('source_file', ''),
                     'page_number': elem.get('page_number', 1),
                     'dimensions': elem.get('dimensions', ''),
-                    'material': elem.get('material', '')
+                    'material': elem.get('material', ''),
+                    'quantity': elem.get('quantity', '')
                 } for elem in elements_for_llm]
             
             # Добавляем результаты LLM к основным
@@ -268,7 +271,8 @@ def classify_elements(session_folder, elements_json_path):
                     'source_file': elem.get('source_file', ''),
                     'page_number': elem.get('page_number', 1),
                     'dimensions': elem.get('dimensions', ''),
-                    'material': elem.get('material', '')
+                    'material': elem.get('material', ''),
+                    'quantity': elem.get('quantity', '')
                 })
     
     # Сохраняем JSON результат
@@ -292,6 +296,7 @@ def classify_elements(session_folder, elements_json_path):
             'IFC Class': elem.get('ifcClass', ''),
             'Файл': elem.get('source_file', ''),
             'Страница': elem.get('page_number', ''),
+            'Количество': elem.get('quantity', ''),
             'Размеры': elem.get('dimensions', ''),
             'Материал': elem.get('material', '')
         })

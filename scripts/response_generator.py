@@ -128,7 +128,7 @@ def generate_response(session_folder, question):
     summary = f"Обработано файлов: {len(source_files)}. "
     summary += f"Обработано страниц: {len(unique_pages)}. "
     if all_elements:
-        summary += f"Найдено элементов: {len(all_elements)}."
+        summary += f"Найдено элементов: {total_quantity}."
     else:
         summary += "Элементы не найдены."
     
