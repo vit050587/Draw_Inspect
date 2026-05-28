@@ -1,0 +1,58 @@
+[
+  {
+    "page_number": 1,
+    "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_1-1.pdf",
+    "elements": [
+      {
+        "object_name": "Лестница",
+        "dimensions": "не указано",
+        "material": "не определён",
+        "quantity": "2",
+        "page_number": 1,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_1-1.pdf"
+      }
+    ]
+  },
+  {
+    "page_number": 1,
+    "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_2-2.pdf",
+    "elements": [
+      {
+        "object_name": "Лестница",
+        "dimensions": "не указано",
+        "material": "не определён",
+        "quantity": "1",
+        "page_number": 1,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_2-2.pdf"
+      }
+    ]
+  },
+  {
+    "page_number": 1,
+    "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_3-3.pdf",
+    "elements": [
+      {
+        "object_name": "Лестница",
+        "dimensions": "не указано",
+        "material": "не определён",
+        "quantity": "1",
+        "page_number": 1,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_3-3.pdf"
+      }
+    ]
+  },
+  {
+    "page_number": 1,
+    "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_4-4.pdf",
+    "elements": [
+      {
+        "object_name": "Лестница",
+        "dimensions": "не указано",
+        "material": "не определён",
+        "quantity": "1",
+        "page_number": 1,
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_4-4.pdf"
+      }
+    ]
+  }
+]

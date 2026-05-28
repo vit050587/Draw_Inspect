@@ -1,0 +1,189 @@
+{
+  "question": "Лестница",
+  "analysis_results": [
+    {
+      "page_number": 1,
+      "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_1-1.pdf",
+      "elements": [
+        {
+          "object_name": "Лестница",
+          "dimensions": "не указано",
+          "material": "не определён",
+          "quantity": "2",
+          "page_number": 1,
+          "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_1-1.pdf"
+        }
+      ]
+    },
+    {
+      "page_number": 1,
+      "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_2-2.pdf",
+      "elements": [
+        {
+          "object_name": "Лестница",
+          "dimensions": "не указано",
+          "material": "не определён",
+          "quantity": "1",
+          "page_number": 1,
+          "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_2-2.pdf"
+        }
+      ]
+    },
+    {
+      "page_number": 1,
+      "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_3-3.pdf",
+      "elements": [
+        {
+          "object_name": "Лестница",
+          "dimensions": "не указано",
+          "material": "не определён",
+          "quantity": "1",
+          "page_number": 1,
+          "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_3-3.pdf"
+        }
+      ]
+    },
+    {
+      "page_number": 1,
+      "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_4-4.pdf",
+      "elements": [
+        {
+          "object_name": "Лестница",
+          "dimensions": "не указано",
+          "material": "не определён",
+          "quantity": "1",
+          "page_number": 1,
+          "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_4-4.pdf"
+        }
+      ]
+    }
+  ],
+  "response": {
+    "answer": "📊 Результат поиска элементов по запросу: \"Лестница\"\n\n============================================================\n\n✅ Найдено элементов: 4\n\n------------------------------------------------------------\nДЕТАЛИ ПО НАЙДЕННЫМ ОБЪЕКТАМ:\n------------------------------------------------------------\n\n1. 🏗️ Лестница\n   📏 Размеры: не указано\n   🧱 Материал: не определён\n   🔢 Количество: 2\n   📄 Найден в документе: 01-09-00-01-01 ПБ1 (6)_68-80_10-13_1-1.pdf\n   📑 Страница: 1\n\n2. 🏗️ Лестница\n   📏 Размеры: не указано\n   🧱 Материал: не определён\n   🔢 Количество: 1\n   📄 Найден в документе: 01-09-00-01-01 ПБ1 (6)_68-80_10-13_2-2.pdf\n   📑 Страница: 1\n\n3. 🏗️ Лестница\n   📏 Размеры: не указано\n   🧱 Материал: не определён\n   🔢 Количество: 1\n   📄 Найден в документе: 01-09-00-01-01 ПБ1 (6)_68-80_10-13_3-3.pdf\n   📑 Страница: 1\n\n4. 🏗️ Лестница\n   📏 Размеры: не указано\n   🧱 Материал: не определён\n   🔢 Количество: 1\n   📄 Найден в документе: 01-09-00-01-01 ПБ1 (6)_68-80_10-13_4-4.pdf\n   📑 Страница: 1\n\n============================================================\n\nВсего обработано страниц: 1. Найдено 4 элементов.",
+    "findings": [
+      {
+        "object_name": "Лестница",
+        "dimensions": "не указано",
+        "material": "не определён",
+        "quantity": "2",
+        "pages": [
+          1
+        ],
+        "files": [
+          "01-09-00-01-01 ПБ1 (6)_68-80_10-13_1-1.pdf"
+        ]
+      },
+      {
+        "object_name": "Лестница",
+        "dimensions": "не указано",
+        "material": "не определён",
+        "quantity": "1",
+        "pages": [
+          1
+        ],
+        "files": [
+          "01-09-00-01-01 ПБ1 (6)_68-80_10-13_2-2.pdf"
+        ]
+      },
+      {
+        "object_name": "Лестница",
+        "dimensions": "не указано",
+        "material": "не определён",
+        "quantity": "1",
+        "pages": [
+          1
+        ],
+        "files": [
+          "01-09-00-01-01 ПБ1 (6)_68-80_10-13_3-3.pdf"
+        ]
+      },
+      {
+        "object_name": "Лестница",
+        "dimensions": "не указано",
+        "material": "не определён",
+        "quantity": "1",
+        "pages": [
+          1
+        ],
+        "files": [
+          "01-09-00-01-01 ПБ1 (6)_68-80_10-13_4-4.pdf"
+        ]
+      }
+    ],
+    "summary": "Всего обработано страниц: 1. Найдено 4 элементов.",
+    "page_references": [
+      1
+    ]
+  },
+  "classification": {
+    "classified_elements": [
+      {
+        "original_object_name": "Лестница",
+        "code_category": "ЭЛ 30",
+        "code_purpose": "ЭЛ 30 24",
+        "code_class": "ЭЛ 30 24 30",
+        "code_subclass": null,
+        "category": "Архитектурные и конструктивные элементы",
+        "purpose": "Лестницы и пандусы",
+        "class": "Лестница",
+        "subclass": null,
+        "ifcClass": "IfcStair",
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_1-1.pdf",
+        "page_number": 1,
+        "dimensions": "не указано",
+        "material": "не определён"
+      },
+      {
+        "original_object_name": "Лестница",
+        "code_category": "ЭЛ 30",
+        "code_purpose": "ЭЛ 30 24",
+        "code_class": "ЭЛ 30 24 30",
+        "code_subclass": null,
+        "category": "Архитектурные и конструктивные элементы",
+        "purpose": "Лестницы и пандусы",
+        "class": "Лестница",
+        "subclass": null,
+        "ifcClass": "IfcStair",
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_2-2.pdf",
+        "page_number": 1,
+        "dimensions": "не указано",
+        "material": "не определён"
+      },
+      {
+        "original_object_name": "Лестница",
+        "code_category": "ЭЛ 30",
+        "code_purpose": "ЭЛ 30 24",
+        "code_class": "ЭЛ 30 24 30",
+        "code_subclass": null,
+        "category": "Архитектурные и конструктивные элементы",
+        "purpose": "Лестницы и пандусы",
+        "class": "Лестница",
+        "subclass": null,
+        "ifcClass": "IfcStair",
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_3-3.pdf",
+        "page_number": 1,
+        "dimensions": "не указано",
+        "material": "не определён"
+      },
+      {
+        "original_object_name": "Лестница",
+        "code_category": "ЭЛ 30",
+        "code_purpose": "ЭЛ 30 24",
+        "code_class": "ЭЛ 30 24 30",
+        "code_subclass": null,
+        "category": "Архитектурные и конструктивные элементы",
+        "purpose": "Лестницы и пандусы",
+        "class": "Лестница",
+        "subclass": null,
+        "ifcClass": "IfcStair",
+        "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_4-4.pdf",
+        "page_number": 1,
+        "dimensions": "не указано",
+        "material": "не определён"
+      }
+    ],
+    "json_path": "uploads/a9616ac7-0494-4f2a-8e5e-8668758bd22a/classified_elements.json",
+    "excel_path": "uploads/a9616ac7-0494-4f2a-8e5e-8668758bd22a/classified_elements.xlsx",
+    "total_classified": 4
+  }
+}
