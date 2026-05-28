@@ -26,9 +26,7 @@ def analyze_pages(pages, question, session_folder):
 1. Имя объекта (object_name) - краткое название
 2. Размеры (dimensions) - все доступные размеры
 3. Материал (material) - из чего сделан элемент
-4. Локацию (location) - где расположен на чертеже
-5. Количество (quantity) - если указано
-6. Уверенность (confidence) - high/medium/low
+4. Количество (quantity) - если указано
 
 Отвечай ТОЛЬКО в формате JSON:
 {{
@@ -37,9 +35,7 @@ def analyze_pages(pages, question, session_folder):
             "object_name": "...",
             "dimensions": "...",
             "material": "...",
-            "location": "...",
-            "quantity": "...",
-            "confidence": "high"
+            "quantity": "..."
         }}
     ]
 }}
@@ -94,10 +90,7 @@ def analyze_pages(pages, question, session_folder):
                     'object_name': f'Элемент на странице {page_num}',
                     'dimensions': 'не указаны',
                     'material': 'не указан',
-                    'location': 'не указана',
-                    'quantity': 'не указано',
-                    'confidence': 'medium',
-                    'raw_response': response_text[:500]
+                    'quantity': 'не указано'
                 }]
             
             # Добавляем информацию о странице к каждому элементу

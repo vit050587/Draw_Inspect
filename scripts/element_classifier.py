@@ -10,10 +10,10 @@ import re
 def find_local_match(object_name, reference_elements):
     """
     Локальный поиск наилучшего соответствия по названию элемента.
-    Возвращает лучший матч и уверенность.
+    Возвращает лучший матч и флаг качества совпадения.
     """
     if not object_name:
-        return None, 'low'
+        return None
     
     # Нормализуем имя для поиска
     object_name_lower = object_name.lower().strip()
@@ -48,15 +48,10 @@ def find_local_match(object_name, reference_elements):
             best_score = score
             best_match = ref_elem
     
-    # Определяем уверенность
-    if best_score >= 100:
-        confidence = 'high'
-    elif best_score >= 70:
-        confidence = 'medium'
-    else:
-        confidence = 'low'
-    
-    return best_match, confidence
+    # Возвращаем только если хорошее совпадение (score >= 70)
+    if best_score >= 70:
+        return best_match
+    return None
 
 
 def classify_elements(session_folder, elements_json_path):
@@ -109,9 +104,7 @@ def classify_elements(session_folder, elements_json_path):
                 'object_name': element.get('object_name', ''),
                 'dimensions': element.get('dimensions', ''),
                 'material': element.get('material', ''),
-                'location': element.get('location', ''),
                 'quantity': element.get('quantity', ''),
-                'confidence': element.get('confidence', 'medium'),
                 'page_number': page_num,
                 'source_file': source_file
             })
@@ -130,9 +123,9 @@ def classify_elements(session_folder, elements_json_path):
     
     for elem in found_elements:
         object_name = elem.get('object_name', '')
-        best_match, match_confidence = find_local_match(object_name, reference_elements)
+        best_match = find_local_match(object_name, reference_elements)
         
-        if best_match and match_confidence in ['high', 'medium']:
+        if best_match:
             # Нашли хорошее совпадение локально
             classified_elements.append({
                 'original_object_name': object_name,
@@ -147,7 +140,6 @@ def classify_elements(session_folder, elements_json_path):
                 'ifcClass': best_match.get('ifcClass'),
                 'source_file': elem.get('source_file', ''),
                 'page_number': elem.get('page_number', 1),
-                'match_confidence': match_confidence,
                 'dimensions': elem.get('dimensions', ''),
                 'material': elem.get('material', '')
             })
@@ -207,7 +199,6 @@ def classify_elements(session_folder, elements_json_path):
             "ifcClass": "IfcPile",
             "source_file": "filename.pdf",
             "page_number": 5,
-            "match_confidence": "high",
             "dimensions": "...",
             "material": "..."
         }}
@@ -215,7 +206,6 @@ def classify_elements(session_folder, elements_json_path):
 }}
 
 Если точное соответствие не найдено, укажите ближайший вариант или null для полей.
-match_confidence: high/medium/low - уверенность в сопоставлении
 """
         
         try:
@@ -254,7 +244,6 @@ match_confidence: high/medium/low - уверенность в сопоставл
                     'ifcClass': None,
                     'source_file': elem.get('source_file', ''),
                     'page_number': elem.get('page_number', 1),
-                    'match_confidence': 'low',
                     'dimensions': elem.get('dimensions', ''),
                     'material': elem.get('material', '')
                 } for elem in elements_for_llm]
@@ -278,7 +267,6 @@ match_confidence: high/medium/low - уверенность в сопоставл
                     'ifcClass': None,
                     'source_file': elem.get('source_file', ''),
                     'page_number': elem.get('page_number', 1),
-                    'match_confidence': 'low',
                     'dimensions': elem.get('dimensions', ''),
                     'material': elem.get('material', '')
                 })
@@ -304,7 +292,8 @@ match_confidence: high/medium/low - уверенность в сопоставл
             'IFC Class': elem.get('ifcClass', ''),
             'Файл': elem.get('source_file', ''),
             'Страница': elem.get('page_number', ''),
-            'Уверенность': elem.get('match_confidence', '')
+            'Размеры': elem.get('dimensions', ''),
+            'Материал': elem.get('material', '')
         })
     
     df = pd.DataFrame(df_data)

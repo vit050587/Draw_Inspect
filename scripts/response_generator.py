@@ -76,26 +76,17 @@ def generate_response(session_folder, question):
             obj_name = element.get('object_name', 'Не указано')
             dimensions = element.get('dimensions', 'не указаны')
             material = element.get('material', 'не указан')
-            location = element.get('location', 'не указана')
             quantity = element.get('quantity', 'не указано')
-            confidence = element.get('confidence', 'medium')
             page_num = element.get('page_number', '?')
             source_file = element.get('source_file', 'не указано')
             
             answer_lines.append(f"{idx}. 🏗️ {obj_name}")
             answer_lines.append(f"   📏 Размеры: {dimensions}")
             answer_lines.append(f"   🧱 Материал: {material}")
-            if location != 'не указана':
-                answer_lines.append(f"   📍 Локация: {location}")
             if quantity != 'не указано':
                 answer_lines.append(f"   🔢 Количество: {quantity}")
             answer_lines.append(f"   📄 Найден в документе: {source_file}")
             answer_lines.append(f"   📑 Страница: {page_num}")
-            
-            # Перевод уверенности
-            conf_map = {'high': 'высокая', 'medium': 'средняя', 'low': 'низкая'}
-            conf_ru = conf_map.get(confidence, confidence)
-            answer_lines.append(f"   ✅ Достоверность: {conf_ru}")
             answer_lines.append("")
     
     answer_lines.append("=" * 60)
@@ -119,9 +110,7 @@ def generate_response(session_folder, question):
             'object_name': element.get('object_name', 'Не указано'),
             'dimensions': element.get('dimensions', 'не указаны'),
             'material': element.get('material', 'не указан'),
-            'location': element.get('location', ''),
             'quantity': element.get('quantity', ''),
-            'confidence': element.get('confidence', 'medium'),
             'pages': [element.get('page_number', 1)],
             'files': [element.get('source_file', '')]
         })
