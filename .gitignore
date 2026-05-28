@@ -1,28 +1,26 @@
 ```
-# Compiled Python files
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# Uploads directory (contains runtime data)
-uploads/
-
-# Logs and temporary files
-*.log
-*.tmp
-*.swp
-
-# Environment files
+# Environment
 .env
 .env.local
-*.env.*
+.env.*
 
-# Editors
-.vscode/
-.idea/
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
 
 # Dependencies
-.venv/
 venv/
+.venv/
 node_modules/
 
 # Build artifacts
@@ -30,12 +28,11 @@ dist/
 build/
 target/
 
-# Coverage reports
-coverage/
-htmlcov/
-.coverage
+# Editors
+.vscode/
+.idea/
 
-# Python cache
-.mypy_cache/
-.pytest_cache/
+# OS
+.DS_Store
+Thumbs.db
 ```
