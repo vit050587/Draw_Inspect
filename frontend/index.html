@@ -356,9 +356,9 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <p style="font-size: 14px; color: #7f8c8d; margin: 0;">Результаты сопоставления со справочником элементов</p>
                         <div style="display: flex; gap: 10px;">
-                            <a id="downloadExcelBtn" class="btn" style="width: auto; padding: 10px 20px; font-size: 14px; display: none;" download>
+                            <button id="downloadExcelBtn" class="btn" style="width: auto; padding: 10px 20px; font-size: 14px; display: none;" onclick="downloadExcel()">
                                 📥 Скачать Excel
-                            </a>
+                            </button>
                         </div>
                     </div>
                     
@@ -694,12 +694,17 @@
             
             // Настраиваем кнопки скачивания
             if (sessionId) {
-                downloadExcelBtn.href = `/api/download/${sessionId}/classified_elements.xlsx`;
                 downloadExcelBtn.style.display = 'inline-block';
             }
             
             classificationSection.classList.add('active');
             classificationSection.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function downloadExcel() {
+            if (!sessionId) return;
+            // Открываем файл в новой вкладке для корректной загрузки через SSH туннель
+            window.open(`/api/download/${sessionId}/classified_elements.xlsx`, '_blank');
         }
         
         function translateConfidence(confidence) {
