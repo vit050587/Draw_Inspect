@@ -578,10 +578,10 @@
                 return html;
             }
             
-            // Display main answer с форматированием
+            // Display main answer с форматированием (теперь answer содержит полную детализацию)
             responseAnswer.innerHTML = formatAnswer(result.answer) || 'Ответ не получен';
             
-            // Скрываем блок деталей по объектам (findingsList) - не отображаем в первом поле
+            // Очищаем блок деталей - теперь они включены прямо в answer
             findingsList.innerHTML = '';
             
             // Скрываем блок обработанных страниц - информация есть в summary
