@@ -205,30 +205,6 @@
             margin-bottom: 8px;
         }
         
-        .confidence-badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-left: 8px;
-        }
-        
-        .confidence-high {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .confidence-medium {
-            background: #fff3cd;
-            color: #856404;
-        }
-        
-        .confidence-low {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        
         .page-references {
             margin-top: 20px;
             padding-top: 15px;
@@ -705,15 +681,6 @@
             if (!sessionId) return;
             // Открываем файл в новой вкладке для корректной загрузки через SSH туннель
             window.open(`/api/download/${sessionId}/classified_elements.xlsx`, '_blank');
-        }
-        
-        function translateConfidence(confidence) {
-            const translations = {
-                'high': 'высокая',
-                'medium': 'средняя',
-                'low': 'низкая'
-            };
-            return translations[confidence] || confidence;
         }
         
         function showError(message) {
