@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from scripts.drawing_detector import extract_drawing_pages_to_pdf
 from scripts.page_analyzer import analyze_pages
 from scripts.response_generator import generate_response
+from scripts.element_classifier import classify_elements
 
 app = Flask(__name__, static_folder='../frontend', static_url_path='')
 CORS(app)
@@ -128,11 +129,20 @@ def analyze():
     
     all_pages = pages_data['pages']
     
-    # Анализируем ВСЕ страницы с чертежами (классификация удалена)
+    # Анализируем ВСЕ страницы с чертежами
     analysis_results = analyze_pages(all_pages, question, session_folder)
+    
+    # Сохраняем результаты анализа для последующего использования
+    analysis_results_path = os.path.join(session_folder, 'analysis_results.json')
+    with open(analysis_results_path, 'w', encoding='utf-8') as f:
+        json.dump(analysis_results, f, ensure_ascii=False, indent=2)
     
     # Генерируем ответ пользователю - передаем session_folder и question
     response_data = generate_response(session_folder, question)
+    
+    # Классифицируем найденные элементы по справочнику
+    elements_json_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'elements.json')
+    classification_result = classify_elements(session_folder, elements_json_path)
     
     # Сохраняем результаты анализа и ответ
     results_path = os.path.join(session_folder, 'results.json')
@@ -140,7 +150,8 @@ def analyze():
         json.dump({
             'question': question,
             'analysis_results': analysis_results,
-            'response': response_data
+            'response': response_data,
+            'classification': classification_result
         }, f, ensure_ascii=False, indent=2)
     
     # Обновляем статус в request.json
@@ -151,7 +162,24 @@ def analyze():
             'status': 'completed'
         }, f, ensure_ascii=False, indent=2)
     
+    # Добавляем информацию о классификации в ответ
+    response_data['classification'] = classification_result
+    
     return jsonify(response_data)
+
+@app.route('/api/download/<session_id>/<filename>')
+def download_file(session_id, filename):
+    """Скачивание файлов классификации (Excel, JSON)"""
+    session_folder = os.path.join(UPLOAD_FOLDER, session_id)
+    if not os.path.exists(session_folder):
+        return jsonify({'error': 'Session not found'}), 404
+    
+    file_path = os.path.join(session_folder, filename)
+    if not os.path.exists(file_path):
+        return jsonify({'error': 'File not found'}), 404
+    
+    return send_from_directory(session_folder, filename, as_attachment=True)
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
