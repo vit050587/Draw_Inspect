@@ -572,10 +572,8 @@
             function formatAnswer(text) {
                 if (!text) return '';
                 
-                // Заменяем маркеры списка на HTML
+                // Заменяем переносы строк на <br>
                 let html = text.replace(/\n/g, '<br>');
-                html = html.replace(/• \*\*(.+?)\*\*:/g, '<div style="margin: 15px 0; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid #667eea;"><strong>$1</strong>:');
-                html = html.replace(/  - /g, '<br>&nbsp;&nbsp;• ');
                 
                 return html;
             }
@@ -583,49 +581,11 @@
             // Display main answer с форматированием
             responseAnswer.innerHTML = formatAnswer(result.answer) || 'Ответ не получен';
             
-            // Display findings в новом формате - показываем детали по каждому объекту
-            if (result.findings && result.findings.length > 0) {
-                let findingsHtml = '<h3 style="margin-bottom: 15px; color: #2c3e50;">Детали по объектам:</h3>';
-                
-                result.findings.forEach((finding, index) => {
-                    const pagesStr = Array.isArray(finding.pages) ? finding.pages.join(', ') : finding.pages;
-                    const filesStr = Array.isArray(finding.files) ? finding.files.join(', ') : finding.files;
-                    
-                    findingsHtml += `
-                        <div class="finding-item" style="border-left-color: #27ae60;">
-                            <h4 style="margin-bottom: 10px; color: #2c3e50;">${index + 1}. ${finding.object_name}</h4>
-                            
-                            <div style="display: grid; gap: 8px; font-size: 14px;">
-                                <div><strong>📏 Размеры:</strong> ${finding.dimensions || 'не указаны'}</div>
-                                <div><strong>🧱 Материал:</strong> ${finding.material || 'не указан'}</div>
-                                ${finding.quantity ? `<div><strong>🔢 Количество:</strong> ${finding.quantity}</div>` : ''}
-                                
-                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ecf0f1;">
-                                    <strong>📄 Найден в документах:</strong><br>
-                                    <span style="color: #7f8c8d; font-size: 13px;">${filesStr || 'не указано'}</span>
-                                </div>
-                                
-                                <div style="margin-top: 5px;">
-                                    <strong>Страницы:</strong> 
-                                    ${Array.isArray(finding.pages) ? finding.pages.map(p => `<span class="page-tag" style="background: #667eea; color: white;">${p}</span>`).join('') : `<span class="page-tag">${finding.pages}</span>`}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                findingsList.innerHTML = findingsHtml;
-            } else {
-                findingsList.innerHTML = '';
-            }
+            // Скрываем блок деталей по объектам (findingsList) - не отображаем в первом поле
+            findingsList.innerHTML = '';
             
-            // Display page references - все страницы где что-то найдено
-            if (result.page_references && result.page_references.length > 0) {
-                pageReferences.innerHTML = '<strong>📑 Обработанные страницы:</strong> ' + 
-                    result.page_references.map(page => `<span class="page-tag">Стр. ${page}</span>`).join('');
-            } else {
-                pageReferences.innerHTML = '';
-            }
+            // Скрываем блок обработанных страниц - информация есть в summary
+            pageReferences.innerHTML = '';
             
             // Display summary
             responseSummary.textContent = result.summary || '';
