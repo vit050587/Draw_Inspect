@@ -29,14 +29,12 @@ def generate_response(session_folder, question):
     
     # Собираем все элементы из всех страниц
     all_elements = []
-    page_references = set()
     source_files = set()
+    total_files = len(pages_data.get('pages', []))
     
     for page in pages_data.get('pages', []):
-        page_num = page.get('page_num', 1)
         source_file = page.get('source_file', '')
         source_files.add(source_file)
-        page_references.add(page_num)
     
     # Загружаем сохраненные результаты анализа если есть
     results_path = os.path.join(session_folder, 'analysis_results.json')
@@ -50,24 +48,55 @@ def generate_response(session_folder, question):
                 element['page_number'] = page_result.get('page_number', 1)
                 element['source_file'] = page_result.get('source_file', '')
                 all_elements.append(element)
-                page_references.add(element['page_number'])
                 source_files.add(element['source_file'])
     
-    # Формируем краткий структурированный ответ (только основная информация)
+    # Формируем подробный ответ с детализацией по каждому элементу
     answer_lines = []
-    answer_lines.append(f"📊 Результат поиска элементов по запросу: \"{question}\"")
-    answer_lines.append("")
+    
+    # Подсчитываем общее количество элементов (сумма quantity)
+    total_quantity = 0
+    for element in all_elements:
+        try:
+            qty = element.get('quantity', '0')
+            # Пытаемся преобразовать в число, если это возможно
+            if isinstance(qty, (int, float)):
+                total_quantity += int(qty)
+            elif isinstance(qty, str) and qty.replace('.', '', 1).replace(',', '', 1).isdigit():
+                # Заменяем запятую на точку для float и преобразуем
+                total_quantity += int(float(qty.replace(',', '.')))
+        except (ValueError, TypeError):
+            pass
     
     if not all_elements:
+        answer_lines.append(f"📊 Результат поиска элементов по запросу: \"{question}\"")
+        answer_lines.append("")
         answer_lines.append("⚠️ Элементы не найдены или анализ еще не завершен.")
         answer_lines.append("")
         answer_lines.append("Проверьте корректность запроса и попробуйте снова.")
     else:
-        answer_lines.append(f"✅ Найдено элементов: {len(all_elements)}")
+        answer_lines.append(f"📊 Результат поиска элементов по запросу: \"{question}\"")
         answer_lines.append("")
-        answer_lines.append("Элементы найдены в следующих документах:")
-        for src_file in sorted(source_files):
-            answer_lines.append(f"  • {src_file}")
+        answer_lines.append(f"✅ Найдено элементов: {total_quantity}")
+        answer_lines.append("")
+        
+        # Детальная информация по каждому элементу
+        for idx, element in enumerate(all_elements, 1):
+            obj_name = element.get('object_name', 'Не указано')
+            dimensions = element.get('dimensions', 'не указано')
+            material = element.get('material', 'не определён')
+            quantity = element.get('quantity', '')
+            source_file = element.get('source_file', '')
+            page_num = element.get('page_number', 1)
+            
+            answer_lines.append(f"{idx}. {obj_name}")
+            answer_lines.append("")
+            answer_lines.append(f"📏 Размеры: {dimensions}")
+            answer_lines.append(f"🧱 Материал: {material}")
+            answer_lines.append(f"🔢 Количество: {quantity}")
+            answer_lines.append("📄 Найден в документах:")
+            answer_lines.append(f"{source_file}")
+            answer_lines.append(f"Страницы: {page_num}")
+            answer_lines.append("")
     
     answer_text = "\n".join(answer_lines)
     
@@ -84,8 +113,20 @@ def generate_response(session_folder, question):
         })
     
     # Сводка: количество файлов, страниц и элементов
+    # Подсчитываем уникальные страницы из ВСЕХ обработанных страниц (pages_data)
+    unique_pages = set()
+    for page in pages_data.get('pages', []):
+        page_key = (page.get('source_file', ''), page.get('page_num', 1))
+        unique_pages.add(page_key)
+    
+    # Если pages_data пуст, пробуем взять из элементов
+    if not unique_pages:
+        for element in all_elements:
+            page_key = (element.get('source_file', ''), element.get('page_number', 1))
+            unique_pages.add(page_key)
+    
     summary = f"Обработано файлов: {len(source_files)}. "
-    summary += f"Обработано страниц: {len(page_references)}. "
+    summary += f"Обработано страниц: {len(unique_pages)}. "
     if all_elements:
         summary += f"Найдено элементов: {len(all_elements)}."
     else:
@@ -95,7 +136,7 @@ def generate_response(session_folder, question):
         'answer': answer_text,
         'findings': findings,
         'summary': summary,
-        'page_references': sorted(list(page_references))
+        'page_references': sorted(list(range(1, len(unique_pages) + 1)))
     }
 
 
