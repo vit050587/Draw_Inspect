@@ -5,51 +5,165 @@ import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 import re
+from difflib import SequenceMatcher
+
+
+# Синонимы и связанные понятия для улучшения поиска
+SYNONYM_GROUPS = [
+    {'лоджия', 'балкон', 'балконный'},
+    {'дверь', 'дверной', 'двери'},
+    {'окно', 'оконный', 'остекление', 'окна'},
+    {'стена', 'стеновой', 'стеновая', 'стен'},
+    {'плита', 'перекрытие'},
+    {'пол', 'напольный'},
+    {'потолок', 'потолочный'},
+    {'фасад', 'фасадный'},
+    {'кровля', 'крыша', 'кровельный'},
+    {'фундамент', 'фундаментный'},
+    {'перегородка', 'внутренняя стена'},
+]
+
+# Контекстные пары: ключевое слово → ожидаемые классы/подклассы
+CONTEXT_HINTS = {
+    'лодж': {'балкон', 'балконный', 'плита балкона', 'балконная дверь', 'Балконная дверь'},
+    'балкон': {'лодж', 'лоджия'},
+    'остекл': {'окно', 'оконный', 'светопрозрачный'},
+    'дверь на лодж': {'Балконная дверь', 'балконная дверь'},
+    'дверь на балкон': {'Балконная дверь', 'балконная дверь'},
+    'стена лодж': {'Стена', 'Плита лоджии', 'Ограждение'},
+    'стена балкон': {'Стена', 'Плита балкона', 'Ограждение'},
+}
+
+
+def normalize_text(text):
+    """Нормализует текст для сравнения: нижний регистр, удаление лишних пробелов."""
+    if not text:
+        return ''
+    return ' '.join(text.lower().strip().split())
+
+
+def get_synonym_expansions(text):
+    """Возвращает набор слов с учётом синонимов."""
+    normalized = normalize_text(text)
+    words = set(normalized.split())
+    expansions = set(words)
+    
+    for word in words:
+        for group in SYNONYM_GROUPS:
+            if any(word.startswith(g[:3]) for g in group):  # Проверяем по первым 3 буквам
+                expansions.update(group)
+    
+    return expansions
+
+
+def calculate_similarity_score(object_name, ref_elem):
+    """
+    Вычисляет оценку схожести между именем объекта и элементом справочника.
+    Учитывает class, subclass, purpose, category и синонимы.
+    Возвращает кортеж (score, match_details).
+    """
+    obj_normalized = normalize_text(object_name)
+    obj_words = set(obj_normalized.split())
+    
+    ref_class = normalize_text(ref_elem.get('class', '') or '')
+    ref_subclass = normalize_text(ref_elem.get('subclass', '') or '')
+    ref_purpose = normalize_text(ref_elem.get('purpose', '') or '')
+    ref_category = normalize_text(ref_elem.get('category', '') or '')
+    
+    # Объединяем все поля справочника для поиска
+    ref_full = f"{ref_class} {ref_subclass} {ref_purpose}".strip()
+    ref_words = set(ref_full.split())
+    
+    score = 0
+    match_details = []
+    
+    # 1. Точное совпадение class (наивысший приоритет)
+    if ref_class and ref_class == obj_normalized:
+        score += 100
+        match_details.append('exact_class')
+    
+    # 2. Class содержит object_name или наоборот
+    if ref_class and obj_normalized in ref_class:
+        score += 80
+        match_details.append('class_contains_obj')
+    elif ref_class and ref_class in obj_normalized:
+        score += 70
+        match_details.append('obj_contains_class')
+    
+    # 3. Subclass совпадение (важно для уточнения)
+    if ref_subclass:
+        if obj_normalized in ref_subclass:
+            score += 75
+            match_details.append('subclass_contains')
+        elif ref_subclass in obj_normalized:
+            score += 65
+            match_details.append('obj_contains_subclass')
+    
+    # 4. Проверка синонимов
+    obj_expansions = get_synonym_expansions(object_name)
+    ref_expansions = get_synonym_expansions(ref_full)
+    
+    common_synonyms = obj_expansions & ref_expansions
+    if common_synonyms:
+        score += len(common_synonyms) * 15
+        match_details.append(f'synonyms:{common_synonyms}')
+    
+    # 5. Контекстные подсказки (лоджия→балкон и т.д.)
+    for context_key, expected_values in CONTEXT_HINTS.items():
+        if context_key in obj_normalized:
+            # Проверяем, есть ли ожидаемые значения в ref_elem
+            for expected in expected_values:
+                if expected.lower() in ref_class.lower() or expected.lower() in ref_subclass.lower():
+                    score += 50
+                    match_details.append(f'context:{context_key}→{expected}')
+                    break
+    
+    # 6. Совпадение по словам (частичное)
+    common_words = obj_words & ref_words
+    if common_words:
+        score += len(common_words) * 10
+        match_details.append(f'common_words:{common_words}')
+    
+    # 7. Fuzzy matching для коротких названий
+    if len(obj_normalized) > 3 and ref_class:
+        ratio = SequenceMatcher(None, obj_normalized, ref_class).ratio()
+        if ratio > 0.6:
+            fuzzy_score = int(ratio * 40)
+            score += fuzzy_score
+            match_details.append(f'fuzzy:{ratio:.2f}')
+    
+    # 8. Совпадение по purpose
+    if obj_normalized in ref_purpose.lower():
+        score += 40
+        match_details.append('purpose_match')
+    
+    return score, match_details
 
 
 def find_local_match(object_name, reference_elements):
     """
     Локальный поиск наилучшего соответствия по названию элемента.
-    Возвращает лучший матч и флаг качества совпадения.
+    Использует улучшенный алгоритм с синонимами и контекстными подсказками.
+    Возвращает лучший матч или None.
     """
     if not object_name:
         return None
     
-    # Нормализуем имя для поиска
-    object_name_lower = object_name.lower().strip()
-    
     best_match = None
     best_score = 0
+    best_details = []
     
     for ref_elem in reference_elements:
-        ref_class = ref_elem.get('class', '') or ''
-        ref_category = ref_elem.get('category', '') or ''
-        ref_purpose = ref_elem.get('purpose', '') or ''
-        
-        # Считаем skor совпадения
-        score = 0
-        
-        # Точное совпадение class (наиболее важный критерий)
-        if ref_class.lower() == object_name_lower:
-            score = 100
-        # Содержит ли class в себе object_name
-        elif object_name_lower in ref_class.lower():
-            score = 80
-        # object_name содержит class
-        elif ref_class.lower() and ref_class.lower() in object_name_lower:
-            score = 70
-        # Совпадение по категории + назначение
-        elif object_name_lower in ref_purpose.lower():
-            score = 50
-        elif object_name_lower in ref_category.lower():
-            score = 30
+        score, details = calculate_similarity_score(object_name, ref_elem)
         
         if score > best_score:
             best_score = score
             best_match = ref_elem
+            best_details = details
     
-    # Возвращаем только если хорошее совпадение (score >= 70)
-    if best_score >= 70:
+    # Возвращаем только если хорошее совпадение (score >= 60)
+    # Сlightly lowered threshold to allow more matches with synonym/context support
+    if best_score >= 60:
         return best_match
     return None
 
