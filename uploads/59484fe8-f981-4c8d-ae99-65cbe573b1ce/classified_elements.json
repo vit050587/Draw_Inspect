@@ -1,0 +1,53 @@
+[
+  {
+    "original_object_name": "Дверь на лоджию",
+    "code_category": "ЭЛ 30",
+    "code_purpose": "ЭЛ 30 18",
+    "code_class": "ЭЛ 30 18 30",
+    "code_subclass": null,
+    "category": "Архитектурные и конструктивные элементы",
+    "purpose": "Окна, двери и ворота",
+    "class": "Дверь",
+    "subclass": null,
+    "ifcClass": "IfcDoor",
+    "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_3-3.pdf",
+    "page_number": 1,
+    "dimensions": "не указано",
+    "material": "не определён",
+    "quantity": "8"
+  },
+  {
+    "original_object_name": "Остекление лоджии",
+    "code_category": "ЭЛ 30",
+    "code_purpose": "ЭЛ 30 18",
+    "code_class": "ЭЛ 30 18 30",
+    "code_subclass": "ЭЛ 30 18 30 10",
+    "category": "Архитектурные и конструктивные элементы",
+    "purpose": "Окна, двери и ворота",
+    "class": "Дверь",
+    "subclass": "Дверь герметическая",
+    "ifcClass": "IfcDoor",
+    "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_3-3.pdf",
+    "page_number": 1,
+    "dimensions": "ширина: 2400, 1500, 2200, 1350, 1900, 1550, 3550, 4600 мм",
+    "material": "не определён",
+    "quantity": "8"
+  },
+  {
+    "original_object_name": "Стены лоджии",
+    "code_category": "ЭЛ 30",
+    "code_purpose": "ЭЛ 30 10",
+    "code_class": "ЭЛ 30 10 25",
+    "code_subclass": null,
+    "category": "Архитектурные и конструктивные элементы",
+    "purpose": "Ограждающие конструкции",
+    "class": "Уплотненный укаткой грунт",
+    "subclass": null,
+    "ifcClass": "IfcReinforcedSoil",
+    "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_3-3.pdf",
+    "page_number": 1,
+    "dimensions": "толщина: 200 мм",
+    "material": "Железобетон (монолитные в/ж конструкции)",
+    "quantity": "16"
+  }
+]
