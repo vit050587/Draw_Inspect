@@ -1,0 +1,22 @@
+{
+  "session_id": "3f4c453e-9144-4112-83c2-84e922b680dc",
+  "total_pages": 2,
+  "pages": [
+    {
+      "path": "/home/kosinov.va/Projects/processing_schema/Draw_Inspect/uploads/3f4c453e-9144-4112-83c2-84e922b680dc/pages/01-09-00-01-01 ПБ1 (6)_68-80_10-13_3-3.pdf_page_1.pdf",
+      "page_num": 1,
+      "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_3-3.pdf",
+      "size": "29.7x42.0cm",
+      "width_cm": 29.703888888888887,
+      "height_cm": 42.01583333333333
+    },
+    {
+      "path": "/home/kosinov.va/Projects/processing_schema/Draw_Inspect/uploads/3f4c453e-9144-4112-83c2-84e922b680dc/pages/01-09-00-01-01 ПБ1 (6)_68-80_10-13_4-4.pdf_page_1.pdf",
+      "page_num": 1,
+      "source_file": "01-09-00-01-01 ПБ1 (6)_68-80_10-13_4-4.pdf",
+      "size": "29.7x42.0cm",
+      "width_cm": 29.703888888888887,
+      "height_cm": 42.01583333333333
+    }
+  ]
+}

@@ -13,7 +13,7 @@ pip-log.txt
 pip-selfcheck.json
 
 # Uploads (assuming temporary/generated files)
-uploads/
+
 
 # Logs
 *.log
